@@ -6,9 +6,9 @@ See MathTest.hs for a demonstration, and to see how the tactical language works.
 
 Currently, you can use it to manually prove things in propositional calculus (MathTest.hs has the 3 minimal rules you need; you can provide your own).
 
-For graph visualization: Copy the output dot code to <file>.dot. Install graphviz and run 
+For graph visualization: Copy the output dot code to input.dot. Install graphviz and run 
 
-dot -Tpdf <file>.dot > <file>.pdf.
+dot -Tpdf input.dot > output.pdf.
 
 ## Design philosophy ##
 

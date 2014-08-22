@@ -9,7 +9,7 @@
  -XScopedTypeVariables
 #-}
 
-module DAGViz (makeParams, defaultVis, toDotString, defaultDot, makeClusterParams, defaultVisC, defaultDotC) where
+module DAGViz (makeParams, defaultVis, toDotString, defaultDot, makeClusterParams, defaultVisC, defaultDotC, makeClusterParams2, defaultVisC2, defaultDotC2) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -91,6 +91,30 @@ defaultVisC f g graph = graphToDot (makeClusterParams f g) graph
 
 defaultDotC :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> String
 defaultDotC f g graph = toDotString (defaultVisC f g graph)
+
+--with no nesting
+
+makeClusterParams2 :: (Show el) => (Node -> nl -> String) -> (Node -> Maybe cl) -> GraphvizParams Node nl el cl nl
+makeClusterParams2 f g = defaultParams {
+  isDotCluster = idc,
+  clusterBy = cb,
+  fmtNode = fn,
+  fmtEdge = fe
+  }
+  where
+    idc xc = True
+    cb (xn,xl) = case g xn of
+	Just xc -> C xc (N (xn,xl))
+	Nothing -> N (xn,xl)
+    fn (xn,xl) = [(Label . StrLabel. pack) (f xn xl)]
+    fe (xm,xn,l) = [(Label . StrLabel. pack) (show l)]
+
+defaultVisC2 :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> Maybe cl) -> Gr nl el -> DotGraph Node
+defaultVisC2 f g graph = graphToDot (makeClusterParams2 f g) graph
+
+defaultDotC2 :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> Maybe cl) -> Gr nl el -> String
+defaultDotC2 f g graph = toDotString (defaultVisC2 f g graph)
+
 
 
 
