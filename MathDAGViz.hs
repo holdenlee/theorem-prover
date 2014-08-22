@@ -8,7 +8,7 @@
  -XPolyKinds
 #-}
 
-module MathDAGViz (mathDAGToDot,mathSessionToDot) where
+module MathDAGViz (mathDAGToDot,mathSessionToDot, mathDAGToDotC, mathSessionToDotC) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -48,3 +48,9 @@ mathDAGToDot slib md = defaultDot (\n form g -> showProp slib n md) (props md)
 mathSessionToDot :: MathSession -> String
 mathSessionToDot ms = mathDAGToDot (symbolLib ms) (mathDAG ms)
 
+-- | with clustering
+mathDAGToDotC :: SymbolLib -> MathDAG -> String
+mathDAGToDotC slib md = defaultDotC (\n form -> showPropOnly slib n md) (\n -> getTreeIndex n md) (props md)
+
+mathSessionToDotC :: MathSession -> String
+mathSessionToDotC ms = mathDAGToDotC (symbolLib ms) (mathDAG ms)

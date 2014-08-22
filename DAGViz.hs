@@ -9,7 +9,7 @@
  -XScopedTypeVariables
 #-}
 
-module DAGViz (makeParams, defaultVis, toDotString, defaultDot) where
+module DAGViz (makeParams, defaultVis, toDotString, defaultDot, makeClusterParams, defaultVisC, defaultDotC) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -59,26 +59,38 @@ defaultDot f g = toDotString (defaultVis f g)
 
 --same but with clustering
 
+listToCluster :: [c] -> NodeCluster c a -> NodeCluster c a
+listToCluster path nc = 
+  case path of 
+    [] -> nc
+    x:xs  -> listToCluster xs (C x nc)
+
+revListToCluster :: [c] -> NodeCluster c a -> NodeCluster c a
+revListToCluster path nc = listToCluster (reverse path) nc
+      
 {-
 input: a function from nodes & labels to a string,
 a function from a node & label to a cluster label, and label of cluster parent.
 -}
-{-
-makeClusterParams :: (Show el) => (Node -> nl -> String) -> (Node -> nl -> (cl,Maybe cl)) -> Gr nl el -> GraphvizParams Node nl el cl nl
-makeClusterParams f g graph = nonClusteredParams {
+
+makeClusterParams :: (Show el) => (Node -> nl -> String) -> (Node -> [cl]) -> GraphvizParams Node nl el cl nl
+makeClusterParams f g = defaultParams {
+  isDotCluster = idc,
   clusterBy = cb,
   fmtNode = fn,
   fmtEdge = fe
   }
   where
-    cb (xn,xl) = 
-      case g xn xl of 
-	(thisCluster, Just parentCluster) -> --put this node inside of thisCluster, and put thisCluster inside of parentCluster
-	(thisCluster, Nothing) -> --put this node in the top-level cluster.
+    idc xc = True
+    cb (xn,xl) = revListToCluster (g xn) (N (xn,xl))
     fn (xn,xl) = [(Label . StrLabel. pack) (f xn xl)]
     fe (xm,xn,l) = [(Label . StrLabel. pack) (show l)]
--}
 
+defaultVisC :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> DotGraph Node
+defaultVisC f g graph = graphToDot (makeClusterParams f g) graph
+
+defaultDotC :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> String
+defaultDotC f g graph = toDotString (defaultVisC f g graph)
 
 
 

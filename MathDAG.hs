@@ -8,7 +8,7 @@
  -XPolyKinds
 #-}
 
-module MathDAG ( HowConclude, BoxContext (vars, assms), TreeIndex, FormulaInfo (howConclude, fType, treeIndex), emptyInfo, MathDAG, props, contextTree, formulaContext, formulaInfo, getProp, getFormulaInfo, getHowConclude, getTreeIndex, getFType, setFormulaInfo, setHowConclude, setTreeIndex, setFType, showProp, isOccupied, inmostTreeIndex, insertProp, insertProps, insertEdges, getByTreeIndex, setTreeIndices, addAt, addTreeIndex, setContextTree, initMathDAG, show2, showMathDAG) where
+module MathDAG ( HowConclude, BoxContext (vars, assms), TreeIndex, FormulaInfo (howConclude, fType, treeIndex), emptyInfo, MathDAG, props, contextTree, formulaContext, formulaInfo, getProp, getFormulaInfo, getHowConclude, getTreeIndex, getFType, setFormulaInfo, setHowConclude, setTreeIndex, setFType, showProp, showPropOnly, isOccupied, inmostTreeIndex, insertProp, insertProps, insertEdges, getByTreeIndex, setTreeIndices, addAt, addTreeIndex, setContextTree, initMathDAG, show2, showMathDAG) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -150,6 +150,14 @@ showProp slib n md =
     prop = getProp n md
   in 
     (show n) ++ ": " ++ (show2 slib prop) ++ " (" ++ show (getTreeIndex n md) ++ ")"
+
+--does not show tree index.
+showPropOnly :: SymbolLib -> Node -> MathDAG -> String
+showPropOnly slib n md = 
+  let 
+    prop = getProp n md
+  in 
+    (show n) ++ ": " ++ (show2 slib prop)
 
 showMathDAG :: SymbolLib -> MathDAG -> String
 showMathDAG slib md = unlines (fmap (flip (showProp slib) md) (nodes (props md))) 

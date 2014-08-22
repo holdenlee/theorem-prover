@@ -215,7 +215,7 @@ sampleProof = do
         showMSResult proof
 	
 	let (ms,_,_) = proof
-	putStrLn (mathSessionToDot ms)
+	putStrLn (mathSessionToDotC ms)
 
 	
 
