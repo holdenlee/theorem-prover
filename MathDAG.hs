@@ -8,7 +8,7 @@
  -XPolyKinds
 #-}
 
-module MathDAG ( HowConclude, BoxContext (vars, assms), TreeIndex, FormulaInfo (howConclude, fType, treeIndex), emptyInfo, MathDAG (props, contextTree, formulaContext, formulaInfo), getProp, getFormulaInfo, getHowConclude, getTreeIndex, getFType, setFormulaInfo, setHowConclude, setTreeIndex, setFType, showProp, isOccupied, inmostTreeIndex, insertProp, insertProps, insertEdges, getByTreeIndex, setTreeIndices, addAt, addTreeIndex, setContextTree, initMathDAG, show2, showMathDAG) where
+module MathDAG ( HowConclude, BoxContext (vars, assms), TreeIndex, FormulaInfo (howConclude, fType, treeIndex), emptyInfo, MathDAG, props, contextTree, formulaContext, formulaInfo, getProp, getFormulaInfo, getHowConclude, getTreeIndex, getFType, setFormulaInfo, setHowConclude, setTreeIndex, setFType, showProp, isOccupied, inmostTreeIndex, insertProp, insertProps, insertEdges, getByTreeIndex, setTreeIndices, addAt, addTreeIndex, setContextTree, initMathDAG, show2, showMathDAG) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive

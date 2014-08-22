@@ -32,6 +32,7 @@ import Pattern
 import State
 import Tactics
 import MathSession
+import MathDAGViz
 
 testFormulas :: String
 testFormulas = 
@@ -212,6 +213,11 @@ sampleProof = do
                   .> forwardReason2 [4,2] 7 "mp" False
                   .> forwardReason2 [6,7] 5 "mp" False) start
         showMSResult proof
+	
+	let (ms,_,_) = proof
+	putStrLn (mathSessionToDot ms)
+
+	
 
 
 

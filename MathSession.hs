@@ -14,7 +14,7 @@
                  , currentGoals :: [Node]
                  , library :: Map String Formula
 		 , symbolLib -}
-module MathSession ( MathSession (library, currentGoals), setMathDAG, dest, dests, destG, destGs, insertKnown, insertGoal, insertKnowns, insertGoals, intro, loadLibrary, constructLibrary, initSession, Tactical, forwardReason2, unfoldProp2, exportProp2, showMS, showLibrary) where
+module MathSession ( MathSession (mathDAG, library, currentGoals, symbolLib), setMathDAG, dest, dests, destG, destGs, insertKnown, insertGoal, insertKnowns, insertGoals, intro, loadLibrary, constructLibrary, initSession, Tactical, forwardReason2, unfoldProp2, exportProp2, showMS, showLibrary, getDAG) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -180,4 +180,7 @@ showLibrary ms =
     slib = symbolLib ms
   in
     unlines (fmap (\k -> (k ++ ": " ++ (show2 slib (lookup2 k lib)))) (Data.List.sort (Map.keys (lib))))
+
+getDAG :: MathSession -> Gr Formula Int
+getDAG ms = props (mathDAG ms)
 
