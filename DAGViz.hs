@@ -59,24 +59,25 @@ defaultDot f g = toDotString (defaultVis f g)
 
 --same but with clustering
 
-listToCluster :: [c] -> NodeCluster c a -> NodeCluster c a
+listToCluster :: [c] -> NodeCluster [c] a -> NodeCluster [c] a
 listToCluster path nc = 
   case path of 
     [] -> nc
-    x:xs  -> listToCluster xs (C x nc)
+    x:xs  -> listToCluster xs (C (x:xs) nc) --changed x to x:xs
 
-revListToCluster :: [c] -> NodeCluster c a -> NodeCluster c a
+revListToCluster :: [c] -> NodeCluster [c] a -> NodeCluster [c] a
 revListToCluster path nc = listToCluster (reverse path) nc
       
 {-
 input: a function from nodes & labels to a string,
 a function from a node & label to a cluster label, and label of cluster parent.
 -}
-
-makeClusterParams :: (Show el) => (Node -> nl -> String) -> (Node -> [cl]) -> GraphvizParams Node nl el cl nl
+--need to change cluster id. Right now label is Int's, but doesn't contain enough information. 
+makeClusterParams :: (Show el, Show cl) => (Node -> nl -> String) -> (Node -> [cl]) -> GraphvizParams Node nl el [cl] nl
 makeClusterParams f g = defaultParams {
   isDotCluster = idc,
   clusterBy = cb,
+  clusterID = Str. pack. show,
   fmtNode = fn,
   fmtEdge = fe
   }
@@ -86,33 +87,34 @@ makeClusterParams f g = defaultParams {
     fn (xn,xl) = [(Label . StrLabel. pack) (f xn xl)]
     fe (xm,xn,l) = [(Label . StrLabel. pack) (show l)]
 
-defaultVisC :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> DotGraph Node
+defaultVisC :: (Show el, Ord cl, Show cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> DotGraph Node
 defaultVisC f g graph = graphToDot (makeClusterParams f g) graph
 
-defaultDotC :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> String
+defaultDotC :: (Show el, Ord cl, Show cl) => (Node -> nl  -> String) -> (Node -> [cl]) -> Gr nl el -> String
 defaultDotC f g graph = toDotString (defaultVisC f g graph)
 
 --with no nesting
 
-makeClusterParams2 :: (Show el) => (Node -> nl -> String) -> (Node -> Maybe cl) -> GraphvizParams Node nl el cl nl
+makeClusterParams2 :: (Show el) => (Node -> nl -> String) -> (Node -> nl -> Maybe String) -> GraphvizParams Node nl el String nl
 makeClusterParams2 f g = defaultParams {
   isDotCluster = idc,
   clusterBy = cb,
+  clusterID = Str. pack,
   fmtNode = fn,
   fmtEdge = fe
   }
   where
     idc xc = True
-    cb (xn,xl) = case g xn of
+    cb (xn,xl) = case g xn xl of
 	Just xc -> C xc (N (xn,xl))
 	Nothing -> N (xn,xl)
     fn (xn,xl) = [(Label . StrLabel. pack) (f xn xl)]
     fe (xm,xn,l) = [(Label . StrLabel. pack) (show l)]
 
-defaultVisC2 :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> Maybe cl) -> Gr nl el -> DotGraph Node
+defaultVisC2 :: (Show el) => (Node -> nl  -> String) -> (Node -> nl -> Maybe String) -> Gr nl el -> DotGraph Node
 defaultVisC2 f g graph = graphToDot (makeClusterParams2 f g) graph
 
-defaultDotC2 :: (Show el, Ord cl) => (Node -> nl  -> String) -> (Node -> Maybe cl) -> Gr nl el -> String
+defaultDotC2 :: (Show el) => (Node -> nl  -> String) -> (Node -> nl -> Maybe String) -> Gr nl el -> String
 defaultDotC2 f g graph = toDotString (defaultVisC2 f g graph)
 
 

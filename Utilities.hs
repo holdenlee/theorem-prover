@@ -8,7 +8,7 @@
  -XPolyKinds
 #-}
 
-module Utilities ((-:), doIf, removeJust, justRight, lookup2, insertMultiple, loopUntilFail, loopUntil, stopBefore, listUpdate, listUpdateFun, replaceSublist, filterZip, cofilter, lookupList, lookupList2, mlookup, (*>), tryWithDefault, foldIterate, foldIterate2, sublist) where
+module Utilities ((-:), doIf, removeJust, removeJustWithDefault, justRight, lookup2, insertMultiple, loopUntilFail, loopUntil, stopBefore, listUpdate, listUpdateFun, replaceSublist, filterZip, cofilter, lookupList, lookupList2, mlookup, (*>), tryWithDefault, foldIterate, foldIterate2, sublist) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -44,6 +44,11 @@ stopBefore p f x =
 --unsafe operations
 removeJust:: Maybe a -> a
 removeJust x = case x of Just y -> y
+
+removeJustWithDefault :: Maybe a -> a-> a
+removeJustWithDefault x y = case x of
+                      Nothing -> y
+                      Just z -> z
 
 justRight :: Either a b -> b
 justRight (Right x) = x
