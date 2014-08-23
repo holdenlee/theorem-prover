@@ -109,7 +109,7 @@ makeClusterParams2 f g = defaultParams {
 	Just xc -> C xc (N (xn,xl))
 	Nothing -> N (xn,xl)
     fn (xn,xl) = [(Label . StrLabel. pack) (f xn xl)]
-    fe (xm,xn,l) = [(Label . StrLabel. pack) (show l)]
+    fe (xm,xn,l) = [(Label . StrLabel. pack) ""]  -- no display. (For display use (show l))
 
 defaultVisC2 :: (Show el) => (Node -> nl  -> String) -> (Node -> nl -> Maybe String) -> Gr nl el -> DotGraph Node
 defaultVisC2 f g graph = graphToDot (makeClusterParams2 f g) graph
