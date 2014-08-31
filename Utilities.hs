@@ -8,7 +8,7 @@
  -XPolyKinds
 #-}
 
-module Utilities ((-:), doIf, removeJust, removeJustWithDefault, justRight, lookup2, insertMultiple, loopUntilFail, loopUntil, stopBefore, listUpdate, listUpdateFun, replaceSublist, filterZip, cofilter, lookupList, lookupList2, mlookup, (*>), tryWithDefault, foldIterate, foldIterate2, sublist) where
+module Utilities ((-:), doIf, removeJust, removeJustWithDefault, justRight, lookup2, insertMultiple, loopUntilFail, loopUntil, stopBefore, listUpdate, listUpdateFun, replaceSublist, filterJust, filterZip, cofilter, lookupList, lookupList2, mlookup, (*>), tryWithDefault, foldIterate, foldIterate2, sublist) where
 import System.Environment
 import Control.Monad
 import Data.Graph.Inductive
@@ -16,9 +16,8 @@ import qualified Data.List.Ordered
 import Data.Tree
 import qualified Data.List
 import qualified Data.Map.Strict as Map
-import Search
-import MathParser
 import qualified Data.Hashable
+import Data.Maybe
 
 --combinators
 (-:):: a -> (a -> b) -> b
@@ -55,6 +54,9 @@ justRight (Right x) = x
 
 lookup2 :: (Ord a) => a -> Map.Map a b -> b
 lookup2 x h = removeJust (Map.lookup x h)
+
+lookupWithDefault:: (Ord a) => a -> Map.Map a b -> b -> b
+lookupWithDefault x h y = removeJustWithDefault (Map.lookup x h) y
   
 --Maps and Lists
 
@@ -78,6 +80,9 @@ replaceSublist m n li li2 =
 
 listUpdate :: Int -> a -> [a] -> [a]
 listUpdate n x li = replaceSublist n (n+1) [x] li
+
+filterJust:: [Maybe a] -> [a]
+filterJust li = map removeJust (filter isJust li)
 
 filterZip:: (b->Bool) -> [a] -> [b] -> [(a,b)]
 filterZip p as bs = filter (\(x,y) -> p y) (zip as bs)
