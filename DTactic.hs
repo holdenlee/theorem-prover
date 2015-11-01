@@ -28,14 +28,10 @@ import Utilities
 --s is the workspace. Note the Maybe is innermost.
 type ProofState r w s a = MaybeT (RWS r w s) a
 
+--(Functor m, Monad m) => Alternative (MaybeT m)
+
 type Tactic' r w s a b = a -> ProofState r w s b
 type Tactic r w s a = Tactic' r w s a a
-
-(.|) :: (Monoid w) => (Tactic' r w s a b) -> (Tactic' r w s a b) -> (Tactic' r w s a b)
-(.|) f g x = MaybeT $ (<|>) <$> (runMaybeT $ f x) <*> (runMaybeT $ g x)
-
-try :: (Monoid w) => (Tactic r w s a) -> (Tactic r w s a)
-try f = f .| return
 
 proofState :: (r -> s -> (Maybe a, s, w)) -> ProofState r w s a
 proofState f = MaybeT $ rws f

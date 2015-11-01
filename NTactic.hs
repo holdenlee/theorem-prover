@@ -40,12 +40,6 @@ instance (Monad m, Monoid l, Monoid (m (w, l))) => Monoid (WriterT l m w) where
   mempty = WriterT $ mempty
   mappend t1 t2 = WriterT $ (runWriterT t1) <> (runWriterT t2)
 
-(.|) :: (Monoid l) => (w -> NProofState c l x) -> (w -> NProofState c l x) -> (w -> NProofState c l x)
-(.|) f g x = (f x) <> (g x)
-
-try :: (Monoid l) => (w -> NProofState c l w) -> (w -> NProofState c l w)
-try f = f .| return
-
 nProofState :: (Monoid l) => (c -> [(w, l)]) -> NProofState c l w
 nProofState f = do
   c <- ask --ask for the context
