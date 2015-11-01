@@ -22,14 +22,18 @@ import Data.Monoid
 import Control.Lens
 import Control.Applicative
 
+import Tactic
+import Utilities
+
 --s is the workspace. Note the Maybe is innermost.
 type ProofState r w s a = MaybeT (RWS r w s) a
 
 type Tactic' r w s a b = a -> ProofState r w s b
 type Tactic r w s a = Tactic' r w s a a
 
+{-
 (.&) :: (Monoid w) => (Tactic' r w s a b) -> (Tactic' r w s b c) -> (Tactic' r w s a c)
-(.&) = (>=>)
+(.&) = (>=>)-}
 
 (.|) :: (Monoid w) => (Tactic' r w s a b) -> (Tactic' r w s a b) -> (Tactic' r w s a b)
 (.|) f g x = MaybeT $ (<|>) <$> (runMaybeT $ f x) <*> (runMaybeT $ g x)
@@ -44,11 +48,8 @@ runProofState :: (Monoid w) => (ProofState r w s a) -> (r -> s -> (Maybe a, s, w
 runProofState = runRWS . runMaybeT
 
 --eval context workspace beginState
-eval :: (Monoid w) => r -> s -> a -> Tactic' r w s a b -> (Maybe b, s, w)
-eval r s a t = runProofState (t a) r s
-
-repeatT :: (Monoid w) => Int -> (Tactic r w s a) -> (Tactic r w s a)
-repeatT n f = foldl1 (.&) $ replicate n f
+evalProofState :: (Monoid w) => r -> s -> a -> Tactic' r w s a b -> (Maybe b, s, w)
+evalProofState r s a t = runProofState (t a) r s
 
 --assume techniques always check for doneness.
   {-

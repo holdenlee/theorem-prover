@@ -23,6 +23,7 @@ import Data.Monoid
 import Data.List
 import Control.Lens
 
+import Tactic
 import NTactic
 
 type Search a = NProofState (a -> [a]) [a] a
@@ -37,5 +38,5 @@ restr s = all (\l -> length (elemIndices l s) <= 2) "abcdefghijk"
 f x = filter restr $ map (x++) ["a","b","c","d","e","f","g","h","i","j","k"]
 
 --eval :: NProofState c l w -> c -> (w, l)
-test = eval ("" & (repeatT 17 step)) f
+test = evalNProofState ("" & (repeatT 17 step)) f
 
