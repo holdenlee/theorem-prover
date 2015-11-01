@@ -28,14 +28,13 @@ import Tactic
 type Search a = Tactic (a -> [a]) [a] a
 
 step :: a -> Search a
-step x = do
-  f <- ask
-  makeTactic $ map (\y -> (y, [y])) $ f x
+step = makeTactic (\f x -> map (\y -> (y, [y])) $ f x)
 
 restr :: String -> Bool
-restr s = all (\l -> length (elemIndices l s) <= 2) "abcd"
+restr s = all (\l -> length (elemIndices l s) <= 2) "abcdefghijk"
 
-f x = filter restr $ map (x++) ["a","b","c","d"]
+f x = filter restr $ map (x++) ["a","b","c","d","e","f","g","h","i","j","k"]
 
-test = eval f ("" & (step .& step .& step .& step .& step))
+test = eval f ("" & (repeatT 17 step))
+               --(step .& step .& step .& step .& step))
 
