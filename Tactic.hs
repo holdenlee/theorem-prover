@@ -16,53 +16,39 @@ module Tactic where
 import Control.Monad
 import Control.Monad.Reader
 import Data.Traversable
-import Control.Monad.Trans.List
-import Control.Monad.Trans.Writer
+import Control.Monad.Trans.RWS.Lazy --or Strict?
+import Control.Monad.Trans.Maybe
 import Data.Monoid
 import Control.Lens
+import Control.Applicative
 
---Reader is commutative
---context, log, and workspace
-type Tactic c l w = WriterT l (ListT (Reader c)) w
+--s is the workspace. Note the Maybe is innermost.
+type ProofState r w s a = MaybeT (RWS r w s) a
 
-instance (Monad m) => Monoid (ListT m a) where
-    mempty = ListT $ return []
-    mappend t1 t2 = ListT $ (++) <$> (runListT t1) <*> (runListT t2)
+type Tactic' r w s a b = a -> ProofState r w s b
+type Tactic r w s a = Tactic' r w s a a
 
-{-
-instance (Monoid l) => Monoid (Tactic c l w) where
-  mempty = runWriterT-}
-
-instance (Monad m, Monoid l, Monoid (m (w, l))) => Monoid (WriterT l m w) where
-  mempty = WriterT $ mempty
-  mappend t1 t2 = WriterT $ (runWriterT t1) <> (runWriterT t2)
-
-(.&) :: (Monoid l) => (w -> Tactic c l x) -> (x -> Tactic c l y) -> (w -> Tactic c l y)
+(.&) :: (Monoid w) => (Tactic' r w s a b) -> (Tactic' r w s b c) -> (Tactic' r w s a c)
 (.&) = (>=>)
 
-(.|) :: (Monoid l) => (w -> Tactic c l x) -> (w -> Tactic c l x) -> (w -> Tactic c l x)
-(.|) f g x = (f x) <> (g x)
+(.|) :: (Monoid w) => (Tactic' r w s a b) -> (Tactic' r w s a b) -> (Tactic' r w s a b)
+(.|) f g x = MaybeT $ (<|>) <$> (runMaybeT $ f x) <*> (runMaybeT $ g x)
 
-try :: (Monoid l) => (w -> Tactic c l w) -> (w -> Tactic c l w)
+try :: (Monoid w) => (Tactic r w s a) -> (Tactic r w s a)
 try f = f .| return
 
-makeTactic :: (Monoid l) => (c -> w -> [(w, l)]) -> w -> Tactic c l w
-makeTactic f w = do
-  c <- ask --ask for the context
-  WriterT $ ListT $ return (f c w)
+proofState :: (r -> s -> (Maybe a, s, w)) -> ProofState r w s a
+proofState f = MaybeT $ rws f
 
-runTactic :: (Monoid l) => (w -> Tactic c l w) -> (c -> w -> [(w, l)])
-runTactic t c w = c & (runReader $ runListT $ runWriterT (t w))
+runProofState :: (Monoid w) => (ProofState r w s a) -> (r -> s -> (Maybe a, s, w))
+runProofState = runRWS . runMaybeT
 
---write in terms of runTactic?
-eval :: c -> Tactic c l w -> (w, l)
-eval g s = (g & (runReader $ runListT $ runWriterT s))!!0
+--eval context workspace beginState
+eval :: (Monoid w) => r -> s -> a -> Tactic' r w s a b -> (Maybe b, s, w)
+eval r s a t = runProofState (t a) r s
 
-repeatT :: (Monoid l) => Int -> (w -> Tactic c l w) -> (w -> Tactic c l w)
+repeatT :: (Monoid w) => Int -> (Tactic r w s a) -> (Tactic r w s a)
 repeatT n f = foldl1 (.&) $ replicate n f
-
-class HasStatus a where
-  succeeded :: a -> Bool
 
 --assume techniques always check for doneness.
   {-
