@@ -1,44 +1,46 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 {-# OPTIONS
  
  -XMultiParamTypeClasses
  -XFunctionalDependencies
  -XFlexibleInstances
+ -XFlexibleContexts
  -XRank2Types
  -XGADTs
  -XPolyKinds
+ -XUndecidableInstances
 #-}
 
 module Tactic where
 import Control.Monad
 import Control.Monad.Reader
 import Data.Traversable
+import Control.Monad.Trans.List
+import Control.Monad.Trans.Writer
+import Data.Monoid
 
-newtype Tactic c w = Tactic (Reader c [w])
---maybe I can do this with ListT? But ListT is funky.
+--Reader is commutative
+--context, log, and workspace
+type Tactic c l w = WriterT l (ListT (Reader c)) w
 
-_tactic :: Tactic c w -> Reader c [w]
-_tactic (Tactic t) = t
+instance (Monad m) => Monoid (ListT m a) where
+    mempty = ListT $ return []
+    mappend t1 t2 = ListT $ (++) <$> (runListT t1) <*> (runListT t2)
 
-instance Functor (Tactic c) where
-    fmap f (Tactic r) = Tactic $ fmap (map f) r
+{-
+instance (Monoid l) => Monoid (Tactic c l w) where
+  mempty = runWriterT-}
 
-instance Applicative (Tactic c) where
-    pure x = Tactic $ return [x]
-    (Tactic f) <*> (Tactic x) = Tactic $ do
-                                  fs <- f
-                                  li <- x
-                                  return (fs <*> li)
+instance (Monad m, Monoid l, Monoid (m (w, l))) => Monoid (WriterT l m w) where
+  mempty = WriterT $ mempty
+  mappend t1 t2 = WriterT $ (runWriterT t1) <> (runWriterT t2)
 
-instance Monad (Tactic c) where
-    (Tactic x) >>= f = Tactic $ do
-                            li <- x
-                            fmap concat $ sequenceA (fmap (_tactic . f) li)
-
-(.&) :: (w -> Tactic c x) -> (x -> Tactic c y) -> (w -> Tactic c y)
+(.&) :: (Monoid l) => (w -> Tactic c l x) -> (x -> Tactic c l y) -> (w -> Tactic c l y)
 (.&) = (>=>)
 
-(.|) :: (w -> Tactic c x) -> (w -> Tactic c x) -> (w -> Tactic c x)
-(.|) f g x = Tactic $ (++) <$> (_tactic $ f x) <*> (_tactic $ g x)
+(.|) :: (Monoid l) => (w -> Tactic c l x) -> (w -> Tactic c l x) -> (w -> Tactic c l x)
+(.|) f g x = (f x) <> (g x)
 
-try :: (w -> Tactic c w) -> (w -> Tactic c w)
+try :: (Monoid l) => (w -> Tactic c l w) -> (w -> Tactic c l w)
 try f = f .| return
