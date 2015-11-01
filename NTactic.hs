@@ -21,15 +21,16 @@ import Control.Monad.Trans.Writer
 import Data.Monoid
 import Control.Lens
 
+import Tactic
 import Utilities
 
 --Reader is commutative
 --context, log, and workspace
 type NProofState c l w = WriterT l (ListT (Reader c)) w
 
-type Tactic' c l w x = (w -> NProofState c l x)
+type NTactic' c l w x = (w -> NProofState c l x)
 
-type Tactic c l w = Tactic' c l w w
+type NTactic c l w = NTactic' c l w w
 
 instance (Monad m) => Monoid (ListT m a) where
     mempty = ListT $ return []

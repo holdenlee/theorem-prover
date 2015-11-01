@@ -22,12 +22,10 @@ import Data.Monoid
 import Control.Lens
 import Control.Applicative
 
+import Utilities
+
 (.&) :: (Monad m) => (a -> m b) -> (b -> m c) -> (a -> m c)
 (.&) = (>=>)
-
---how to write point-free? (or template haskell...)
-c2 :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
-c2 f g x y = f $ g x y
 
 --(Monoid w) => Int -> (Tactic r w s a) -> (Tactic r w s a)
 repeatT :: (Monad m) => Int -> (a -> m a) -> (a -> m a)
