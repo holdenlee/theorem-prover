@@ -54,25 +54,12 @@ nProofState f = do
 runNProofState :: (NProofState c l w) -> (c -> [(w, l)])
 runNProofState = runReader . runListT . runWriterT
 
-{-
-makeNProofState :: (Monoid l) => (c -> w -> [(w, l)]) -> w -> NProofState c l w
-makeNProofState f w = do
-  c <- ask --ask for the context
-  WriterT $ ListT $ return (f c w)
--}
-
-{-
-runNProofState :: (Monoid l) => (w -> NProofState c l w) -> (c -> w -> [(w, l)])
-runNProofState t c w = c & (runReader $ runListT $ runWriterT (t w))-}
-
 --how to make point-free?
 c2 :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 c2 f g x y = f $ g x y
 
---write in terms of runNProofState?
 eval :: NProofState c l w -> c -> (w, l)
 eval = (!!0) `c2` runNProofState 
---(g & (runReader $ runListT $ runWriterT s))!!0
 
 repeatT :: (Monoid l) => Int -> (w -> NProofState c l w) -> (w -> NProofState c l w)
 repeatT n f = foldl1 (.&) $ replicate n f

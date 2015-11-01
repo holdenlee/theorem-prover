@@ -38,5 +38,4 @@ f x = filter restr $ map (x++) ["a","b","c","d","e","f","g","h","i","j","k"]
 
 --eval :: NProofState c l w -> c -> (w, l)
 test = eval ("" & (repeatT 17 step)) f
-               --(step .& step .& step .& step .& step))
 
