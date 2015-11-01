@@ -19,6 +19,7 @@ import Data.Traversable
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Writer
 import Data.Monoid
+import Control.Lens
 
 --Reader is commutative
 --context, log, and workspace
@@ -44,3 +45,10 @@ instance (Monad m, Monoid l, Monoid (m (w, l))) => Monoid (WriterT l m w) where
 
 try :: (Monoid l) => (w -> Tactic c l w) -> (w -> Tactic c l w)
 try f = f .| return
+
+makeTactic :: [(w, l)] -> Tactic c l w
+makeTactic = WriterT . ListT . return
+
+eval :: c -> Tactic c l w -> (w, l)
+eval g s = (g & (runReader $ runListT $ runWriterT s))!!0
+
