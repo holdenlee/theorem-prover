@@ -39,10 +39,6 @@ instance (Monad m, Monoid l, Monoid (m (w, l))) => Monoid (WriterT l m w) where
   mempty = WriterT $ mempty
   mappend t1 t2 = WriterT $ (runWriterT t1) <> (runWriterT t2)
 
-{-
-(.&) :: (Monoid l) => (w -> NProofState c l x) -> (x -> NProofState c l y) -> (w -> NProofState c l y)
-(.&) = (>=>)-}
-
 (.|) :: (Monoid l) => (w -> NProofState c l x) -> (w -> NProofState c l x) -> (w -> NProofState c l x)
 (.|) f g x = (f x) <> (g x)
 
