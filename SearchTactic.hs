@@ -27,10 +27,6 @@ import Tactic
 
 type Search a = Tactic (a -> [a]) [a] a
 
-{-
-pureT :: Reader c w -> Tactic c l w
-pureT r = return r-}
-
 step :: a -> Search a
 step x = do
   f <- ask
