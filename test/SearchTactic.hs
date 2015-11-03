@@ -23,20 +23,20 @@ import Data.Monoid
 import Data.List
 import Control.Lens
 
+import Comb
 import Tactic
-import NTactic
 
-type Search a = NProofState (a -> [a]) [a] a
+type Search a = ProofState [a] (a -> [a]) a ()
 
---nProofState :: (Monoid l) => (c -> [(w, l)]) -> NProofState c l w
-step :: a -> Search a
-step x = nProofState (\f -> map (\y -> (y, [y])) $ f x)
+--proofState :: (r -> s -> [((a, w), s)]) -> ProofState w r s a
+step :: Search a
+step = proofState (\f x -> map (\y -> (((), [y]), y)) $ f x)
 
 restr :: String -> Bool
 restr s = all (\l -> length (elemIndices l s) <= 2) "abcdefghijk"
 
 f x = filter restr $ map (x++) ["a","b","c","d","e","f","g","h","i","j","k"]
 
---eval :: NProofState c l w -> c -> (w, l)
-test = evalNProofState ("" & (repeatT 17 step)) f
+--evalProofState :: (Monoid w) => ProofState w r s a -> r -> s -> (a, w)
+test = evalProofState (sequence $ replicate 17 step) f ""
 

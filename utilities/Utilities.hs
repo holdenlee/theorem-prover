@@ -21,8 +21,13 @@ import Debug.Trace
 -- * Function combinators
 
 --how to make point-free?
+infixr 0 `c2`
 c2 :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
 c2 f g x y = f $ g x y
+
+infixr 0 `c3`
+c3 :: (d -> e) -> (a -> b -> c -> d) -> (a -> b -> c -> e)
+c3 f g x y z = f $ g x y z
 
 doIf :: Bool -> (a -> a) -> (a -> a)
 doIf p f = (\x -> if p then f x else x)
