@@ -12,7 +12,7 @@
  -XTupleSections
 #-}
 
-module SearchTactic where
+module Main where
 
 import Control.Monad
 import Control.Monad.Reader
@@ -24,7 +24,7 @@ import Data.List
 import Control.Lens
 
 import Comb
-import Tactic
+import Tactic2
 
 type Search a = ProofState [a] (a -> [a]) a ()
 
@@ -40,3 +40,4 @@ f x = filter restr $ map (x++) ["a","b","c","d","e","f","g","h","i","j","k"]
 --evalProofState :: (Monoid w) => ProofState w r s a -> r -> s -> (a, w)
 test = evalProofState (sequence $ replicate 17 step) f ""
 
+main = putStrLn $ show test
