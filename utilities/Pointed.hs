@@ -8,6 +8,8 @@ module Pointed where
 
 import qualified Data.Set as S
 import qualified Data.Map.Strict as M
+import qualified Data.Graph.Inductive as G
+import Data.Tree
 
 class Pointed a where
   point :: a
@@ -26,3 +28,9 @@ instance Pointed (a -> a) where
 
 instance (Pointed a, Pointed b) => Pointed (a,b) where
   point = (point, point)
+
+instance Pointed (G.Gr a b) where
+  point = G.empty
+
+instance Pointed a => Pointed (Tree a) where
+  point = Node point []
