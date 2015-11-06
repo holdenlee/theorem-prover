@@ -35,3 +35,8 @@ toSubMap = foldl (\m (b,c) -> m >>= (\m' -> if b `M.notMember` m' || m' M.! b ==
 
 pmatch :: (Eq a, Eq b, Ord b) => [LeafTree (WithVar b a)] -> [LeafTree (WithVar b a)] -> Maybe (M.Map b (LeafTree (WithVar b a)))
 pmatch = (>>= toSubMap) `c2` fmap concat `c2` sequence `c2` zipWith pmatch'
+
+sub :: (Ord b, HasVar b c) => M.Map b (LeafTree c) -> LeafTree c -> LeafTree c
+sub m tree = tree >>= (\x -> case getVar x of
+                              Just v -> m M.! v
+                              Nothing -> return x)
