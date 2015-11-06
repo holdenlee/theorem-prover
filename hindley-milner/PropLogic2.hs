@@ -4,7 +4,7 @@
 
 #-}
 
-module PropLogic where
+module PropLogic2 where
 
 import Control.Monad
 import qualified Data.Set as S
