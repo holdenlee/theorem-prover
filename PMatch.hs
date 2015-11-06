@@ -40,3 +40,10 @@ sub :: (Ord b, HasVar b c) => M.Map b (LeafTree c) -> LeafTree c -> LeafTree c
 sub m tree = tree >>= (\x -> case getVar x of
                               Just v -> m M.! v
                               Nothing -> return x)
+
+forward :: (Eq a, Eq b, Ord b) => [LeafTree (WithVar b a)] -> [LeafTree (WithVar b a)] ->
+           LeafTree (WithVar b a) -> Maybe (LeafTree (WithVar b a))
+forward li1 li2 concl = fmap (flip sub concl) (pmatch li1 li2)
+
+backward :: (Eq a, Eq b, Ord b) => [LeafTree (WithVar b a)] -> LeafTree (WithVar b a) -> LeafTree (WithVar b a) -> Maybe [(LeafTree (WithVar b a))]
+backward li c1 c2 = fmap (\x -> map (sub x) li) (pmatch [c1] [c2])
