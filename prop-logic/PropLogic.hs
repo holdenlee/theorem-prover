@@ -23,7 +23,7 @@ import PMatch
 
 type PAtom = WithVar IVar Str
 
-newtype Statement = Statement (LeafTree PAtom)
+newtype Statement = Statement (LeafTree PAtom) deriving (Eq, Ord)
 
 instance (Show Statement) where
   show (Statement (Pure p)) = show p

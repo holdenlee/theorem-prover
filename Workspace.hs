@@ -18,6 +18,7 @@ import Control.Monad.State.Lazy
 import qualified Data.Graph.Inductive as G
 import Data.List
 import Data.Tree
+import Data.Tree.Lens
 import qualified Data.Set as S
 import qualified Data.Map.Strict as M
 import qualified Data.MultiMap as MM
@@ -54,7 +55,27 @@ data DAGWorkspace form ctxt hc = DAGWorkspace { _props:: G.Gr form Int
                                               , _focus :: TreeIndex
                                               }
 
-data WContext form = WContext {_library :: M.Map String form}
+lookupTI :: TreeIndex -> Tree ctxt -> ctxt
+lookupTI ti tree =
+  let children = subForest tree
+  in
+   case ti of
+    [] -> rootLabel tree
+    h:rest -> lookupTI rest (children!!h)
+
+insertTI :: ctxt -> TreeIndex -> Tree ctxt -> (Int, Tree ctxt)
+insertTI ctxt ti tree =
+  let children = subForest tree
+  in
+   case ti of
+    [] -> ((length children) + 1, tree & branches %~ (++[Node ctxt []]))
+    h:rest ->
+      let
+        (n, t) = insertTI ctxt rest (children!!h)
+      in
+       (n, tree & (branches . ix h) .~ t)
+
+--data WContext form = WContext {_library :: M.Map String form}
                              -- _symbolLib :: SymbolLib
                     --see old Type.hs
 
@@ -65,8 +86,8 @@ instance (Pointed BoxContext) where
 instance (Pointed ctxt, Pointed hc) => Pointed (DAGWorkspace form ctxt hc) where
   point = DAGWorkspace {_props = point, _contextTree = point, _treeIndices = point, _howConclude = point, _allKnown = point, _currentKnown = point, _currentGoals = point, _focus = point}
 
-instance (Pointed form) => (Pointed (WContext form)) where
-  point = WContext {_library = point}
+{-instance (Pointed form) => (Pointed (WContext form)) where
+  point = WContext {_library = point}-}
 
 makeLenses ''DAGWorkspace
 
@@ -163,7 +184,7 @@ propagateKnowns w = propagateKnowns' (filter (\x -> not $ x `S.member` (w ^. all
 * give a internal representation of how it concluded (hc)
 * give a human-readable representation of what it did (str)
 |-}
-forwardReason' :: (Eq form) => (ctxt -> [form] -> Maybe (form, hc, str)) -> Bool -> [G.Node] -> ctxt -> DAGWorkspace form ctxt hc -> [((G.Node, str), DAGWorkspace form ctxt hc)]
+forwardReason' :: (Eq form) => (c -> [form] -> Maybe (form, hc, str)) -> Bool -> [G.Node] -> c -> DAGWorkspace form ctxt hc -> [((G.Node, str), DAGWorkspace form ctxt hc)]
 forwardReason' f destr ins ctxt w = maybeToList $ 
     do 
       --get hyps by looking up the nodes in the proposition graphs
@@ -177,7 +198,7 @@ forwardReason' f destr ins ctxt w = maybeToList $
       return ((n, str), propagateKnowns w')
 
 -- G.Node -> hc -> [form] -> DAGWorkspace form ctxt -> ([G.Node], DAGWorkspace form ctxt hc)
-backwardReason' :: (Eq form) => (ctxt -> form -> Maybe ([form], hc, str)) -> G.Node -> ctxt -> DAGWorkspace form ctxt hc -> [(([G.Node], str), DAGWorkspace form ctxt hc)]
+backwardReason' :: (Eq form) => (c -> form -> Maybe ([form], hc, str)) -> G.Node -> c -> DAGWorkspace form ctxt hc -> [(([G.Node], str), DAGWorkspace form ctxt hc)]
 backwardReason' f out ctxt w = maybeToList $ 
     do 
       --get goal by looking up the node in the proposition graphs
@@ -188,3 +209,32 @@ backwardReason' f out ctxt w = maybeToList $
       -- G.Node -> hc -> [form] -> DAGWorkspace form ctxt hc -> ([G.Node], DAGWorkspace form ctxt hc)
       let (ns, w') = backwardProp out ti hc hyps w
       return ((ns, str), propagateKnowns w')
+
+unfoldProp :: G.Node -> TreeIndex -> hc -> [form] -> form -> DAGWorkspace form ctxt hc -> (([G.Node], G.Node), DAGWorkspace form ctxt hc)
+unfoldProp n ti hc assms goal =
+  runState $ do
+    w <- get
+--insProp :: TreeIndex -> hc -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+    assmsNode <- sequence $ map (\f -> state (\w' -> insProp ti hc f w')) assms
+    goalNode <- state (insProp ti hc goal)
+    modify (((props . insLens n) .~ [(0, goalNode)]) .
+            (howConclude . at n .~ Just hc))
+    return (assmsNode, goalNode)
+
+unfold' :: (Eq form) => (c -> form -> Maybe (([form], form), hc, str)) -> G.Node -> c-> DAGWorkspace form BoxContext hc -> [((([G.Node], G.Node, TreeIndex), str), DAGWorkspace form BoxContext hc)]
+unfold' f n ctxt w = maybeToList $
+    do
+      --look up node in proposition graph
+      let pr = w ^. (props . nodeLens n)
+      --now apply f on it
+      ((assm, goal), hc, str) <- f ctxt pr
+      let newNs = G.newNodes (length assm) (w ^. props)
+      let ti = fromJust $ w ^. (treeIndices . at n)
+      let (i,contextTree') = insertTI (BoxContext {_assms = newNs}) ti (w ^. contextTree)
+      let ti' = ti++[i]
+      let w' = w & contextTree .~ contextTree'
+      --G.Node -> TreeIndex -> hc -> [form] -> form -> DAGWorkspace form ctxt hc -> [(([G.Node], G.Node), DAGWorkspace form ctxt hc)]
+      let ((assmsNode, goalNode), w'') = unfoldProp n ti' hc assm goal w'
+      return (((assmsNode, goalNode, ti'), str), w'')
+
+--should give the writer access to the nodes!

@@ -189,21 +189,14 @@ zemap f li = map f (zenumerate li)
 keepi :: (Int -> Bool) -> [a] -> [a]
 keepi f li = map snd (filter (f.fst) (enumerate li))
 
--- * Either
-
-getLeft :: Either a b -> Maybe a
-getLeft x = case x of
-              Left y -> Just y
-              Right _ -> Nothing
-
-getRight :: Either a b -> Maybe b
-getRight x = case x of
-              Left _ -> Nothing
-              Right y -> Just y
-
 -- * Other
 
 --unsafe
+fromLeft :: Either a b -> Maybe a
+fromLeft x = case x of
+              Left y -> Just y
+              Right _ -> Nothing
+
 fromRight :: Either a b -> b
 fromRight (Right x) = x
 
