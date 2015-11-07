@@ -12,9 +12,10 @@ module Utilities where
 import System.Environment
 import Control.Monad
 import Data.Tree
-import qualified Data.List
+import Data.List
 import qualified Data.Map.Strict as Map
 import qualified Data.Hashable
+import Data.Either
 import Data.Maybe
 import Debug.Trace
 
@@ -121,6 +122,9 @@ appendFun f x = (x, f x)
  
 -- * Maps and Lists
 
+isInitialSegment :: Eq a => [a] -> [a] -> Bool
+isInitialSegment = isJust `c2` stripPrefix
+
 insertMultiple :: (Ord a) => [(a, b)] -> Map.Map a b -> Map.Map a b 
 insertMultiple li h = foldl (\hm -> (\(x,y) -> Map.insert x y hm)) h li
 
@@ -184,6 +188,18 @@ zemap f li = map f (zenumerate li)
 
 keepi :: (Int -> Bool) -> [a] -> [a]
 keepi f li = map snd (filter (f.fst) (enumerate li))
+
+-- * Either
+
+getLeft :: Either a b -> Maybe a
+getLeft x = case x of
+              Left y -> Just y
+              Right _ -> Nothing
+
+getRight :: Either a b -> Maybe b
+getRight x = case x of
+              Left _ -> Nothing
+              Right y -> Just y
 
 -- * Other
 
