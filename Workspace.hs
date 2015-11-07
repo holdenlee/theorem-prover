@@ -14,6 +14,7 @@
 module Workspace where
 
 import Control.Monad
+import Control.Monad.State.Lazy
 import qualified Data.Graph.Inductive as G
 import Data.List
 import Data.Tree
@@ -87,38 +88,57 @@ findRecord = foldl (\x y -> x >>= (\x' -> do
                         Just LT -> Just y
                         _ -> Just x')) (Just point)
 
---check to see if in already
---Left if it's forward reasoning, Right if its backwards
-insertProp :: Either [G.Node] [G.Node] -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-insertProp e destr hc form w = 
+wNewNode :: DAGWorkspace form ctxt hc -> G.Node
+wNewNode w = (G.newNodes 0 (w ^. props))!!0
+
+insProp :: TreeIndex -> hc -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+insProp ti hc form w = 
+    let 
+        n = wNewNode w
+    in 
+      (n, w & props %~ (G.insNode (n, form))
+            & (treeIndices . at n) .~ Just ti
+            & (howConclude . at n) .~ Just hc)
+
+checkTI :: [G.Node] -> DAGWorkspace form ctxt hc -> Maybe TreeIndex
+checkTI nds w = 
     do
-      let ins = fromMaybe [] $ getLeft e
-      let outs = fromMaybe [] $ getRight e
-      let n = (G.newNodes 1 (w ^. props))!!0
-      let f = sequence . map (\x -> M.lookup x (w ^. treeIndices))
-      ins' <- f ins
-      outs' <- f outs
-      deepest <- findRecord (ins' ++ outs')
-      --the prop is now known if we're reasoning forwards, and all its predecessors were known
-      let isNowKnown = (isLeft e) && all (`S.member` (w ^. allKnown)) ins 
-        --add the node
-      let w' = w & props %~ ((G.&) (zenumerate ins, n, form, zenumerate outs))
-             --tag it with the deepest tree index in the premises or conclusion
-                 & (treeIndices . at n) .~ (Just deepest)
-                 & (howConclude . at n) .~ (Just hc)
-             --whether to remove from goals or hyps
-                 & (--if forward reasoning
-                    if isLeft e
-                    --if it is now known
-                    then if isNowKnown  
-                         then (currentKnown %~ S.insert n) .
-                              (allKnown %~ S.insert n)
-                         else id
-                    else (currentGoals %~ (S.insert n . S.deletes outs)))
-                 & (if destr && isLeft e
-                    then currentKnown %~ S.deletes ins
-                    else id)
-      return (n, w')
+      tis <- sequence $ map (\x -> M.lookup x (w ^. treeIndices)) $ nds
+      findRecord tis
+
+findFormula :: (Eq form) => (TreeIndex -> Bool) -> form -> DAGWorkspace form ctxt hc -> Maybe G.Node
+findFormula tif form w = fmap fst $ listToMaybe $ filter (\(n, l) -> l==form && tif ((w ^. treeIndices) M.! n)) $ G.labNodes (w ^. props)
+
+findOrInsProp :: (Eq form) => (TreeIndex -> Bool) -> TreeIndex -> hc -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+findOrInsProp tif ti hc form w = 
+    case findFormula tif form w of
+--findFormula :: (Eq form) => TreeIndex -> form -> DAGWorkspace form ctxt hc -> Maybe G.Node
+        Just n -> (n, w)
+        Nothing -> insProp ti hc form w
+
+connectForwardProp :: [G.Node] -> G.Node -> Bool -> DAGWorkspace form ctxt hc -> DAGWorkspace form ctxt hc
+connectForwardProp ins n destr w =
+    let isNowKnown = all (`S.member` (w ^. allKnown)) ins 
+    in
+      w & (props . insLens n) .~ (zenumerate ins)
+        & (if destr 
+           then currentKnown %~ S.deletes ins
+           else id)
+
+--right now only connect to things ==ti, rather than >=ti
+forwardProp :: (Eq form) => [G.Node] -> TreeIndex  -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+forwardProp ins ti destr hc form w = 
+    (\(n, w') -> (n, connectForwardProp ins n destr w')) $ findOrInsProp (==ti) ti hc form w
+        
+--only spread goaliness to new nodes?
+backwardProp :: (Eq form) => G.Node -> hc -> [form] -> DAGWorkspace form ctxt hc -> ([G.Node], DAGWorkspace form ctxt hc)
+backwardProp out hc forms =
+  runState $ do
+    w <- get
+    let ti = fromJust (w ^. treeIndices . at out)
+    --(TreeIndex -> Bool) -> TreeIndex -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+    nds <- sequence $ map (\f -> state (\w' -> findOrInsProp ((==Just True) . (`le` ti)) ti hc f w')) forms
+    return nds
 
 propagateKnowns' :: [G.Node] -> DAGWorkspace form ctxt hc -> DAGWorkspace form ctxt hc
 propagateKnowns' nds w = 
@@ -137,43 +157,6 @@ propagateKnowns' nds w =
 
 propagateKnowns w = propagateKnowns' (filter (\x -> not $ x `S.member` (w ^. allKnown)) $ G.nodes (w ^. props)) w
 
-connectProp :: Either [G.Node] [G.Node] -> Bool -> hc -> G.Node -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-connectProp e destr hc n w = 
-    do
-      let ins = fromMaybe [] $ getLeft e
-      let outs = fromMaybe [] $ getRight e
-      let f = sequence . map (\x -> M.lookup x (w ^. treeIndices))
-      ins' <- f ins
-      outs' <- f outs
-      n' <- M.lookup n (w ^. treeIndices)
-      deepest <- findRecord (ins' ++ outs' ++ [n'])
-      --we have to make sure the node itself is compatible
-      guard (n'==deepest)
-      --the prop is now known if we're reasoning forwards, and all its predecessors were known, or it's known to begin with
-      let isNowKnown = (n `S.member` (w ^. allKnown)) || ((isLeft e) && all (`S.member` (w ^. allKnown)) ins) 
-        --add the node
-      let w' = if isLeft e
-               --if adding it as a conclusion, add incoming edges
-               then w & (props . insLens n) .~ (zenumerate ins)
-               --add how we concluded it
-                      & (howConclude . at n) .~ Just hc
-               --if it's now known, add to known nodes
-                      & (if isNowKnown
-                         then (currentKnown %~ S.insert n) .
-                              (allKnown %~ S.insert n)
-                         else id)
-               --if destr, then delete the hypotheses (we're done with them)
-                      & (if destr
-                         then currentKnown %~ S.deletes ins
-                         else id)
-               --if adding it as a goal, add outgoing edges
-               else w & (props . outsLens n) .~ (map (0,) outs) --how should we enumerate these?
-               --if it's already known, don't do anything, else it's a new goal
-                      & (if isNowKnown 
-                         then id
-                         else currentGoals %~ S.insert n)
-      return (n, w')
-
 --(r -> s -> [((a, w), s)]), s is the workspace
 {-| f is a function that given a context and a list of formulas, will attempt to
 * build a formula out of it, 
@@ -181,57 +164,17 @@ connectProp e destr hc n w =
 * give a human-readable representation of what it did (str)
 |-}
 forwardReason' :: (Eq form) => (ctxt -> [form] -> Maybe (form, hc, str)) -> Bool -> [G.Node] -> ctxt -> DAGWorkspace form ctxt hc -> [((G.Node, str), DAGWorkspace form ctxt hc)]
-forwardReason' f destr nds ctxt w = maybeToList $ 
+forwardReason' f destr ins ctxt w = maybeToList $ 
     do 
       --get hyps by looking up the nodes in the proposition graphs
-      let hyps = map (\x -> w ^. (props . nodeLens x)) nds 
+      let hyps = map (\x -> w ^. (props . nodeLens x)) ins 
       --now apply f on them
       (concl, hc, str) <- f ctxt hyps
-      let maybeN = findFirstIndexOf (==concl) $ G.labNodes (w ^. props)
-      --does the conclusion already exists in the graph?
-      (case maybeN of
---connectProp :: Either [G.Node] [G.Node] -> Bool -> hc -> G.Node -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-        --connect up the props 
-        Just n -> w & (connectProp (Left nds) destr hc n) 
---insertProp :: Either [G.Node] [G.Node] -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-        Nothing -> (w & (insertProp (Left nds) destr hc concl))) 
-                --add the message
-                |> fmap (first (,str))
---WARNING: the conclusion treeindex must be correct!
---connectProp fails if not deepest treeidex, use to advantage?
---TODO
+      --checkTI :: [Node] -> DAGWorkspace form ctxt hc -> Maybe TreeIndex
+      ti <- checkTI ins w
+      -- [G.Node] -> TreeIndex  -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
+      let (n, w') = w & forwardProp ins ti destr hc concl
+      return ((n, str), propagateKnowns w')
 
---is there a formula on the workspace that makes the same assumptions?
-findFormula :: (Eq form) => TreeIndex -> form -> DAGWorkspace form ctxt hc -> Maybe G.Node
-findFormula ti form w = fmap fst $ listToMaybe $ filter (\(n, l) -> l==form && ((w ^. treeIndices) M.! n) == ti) $ G.labNodes (w ^. props) 
---or less
---(isInitialSegment ((w ^. treeIndices) M.! n) ti)
-
-{-
-addOrFind :: TreeIndex -> form -> DAGWorkspace form ctxt hc -> G.Node
-addOrFind ti form w = 
-    let
-        maybeN = findFirstIndexOf (==form) $ G.labNodes (w ^. props)
-    in
-      case maybeN of
-        Just n -> 
-            case w -}
-{-
-backwardReason' :: (Eq form) => (ctxt -> form -> Maybe ([form], hc, str)) -> Bool -> [G.Node] -> ctxt -> DAGWorkspace form ctxt hc -> [((G.Node, str), DAGWorkspace form ctxt hc)]
-backwardReason' f destr nds ctxt w = maybeToList $ 
-    do 
-      --get hyps by looking up the nodes in the proposition graphs
-      let hyps = map (\x -> w ^. (props . nodeLens x)) nds 
-      --now apply f on them
-      (concl, hc, str) <- f ctxt hyps
-      let maybeN = findFirstIndexOf (==concl) $ G.labNodes (w ^. props)
-      --does the conclusion already exists in the graph?
-      (case maybeN of
---connectProp :: Either [G.Node] [G.Node] -> Bool -> hc -> G.Node -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-        --connect up the props 
-        Just n -> w & (connectProp (Left nds) destr hc n) 
---insertProp :: Either [G.Node] [G.Node] -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
-        Nothing -> (w & (insertProp (Left nds) destr hc concl))) 
-                --add the message
-                |> fmap (first (,str))
--}
+-- G.Node -> hc -> [form] -> DAGWorkspace form ctxt -> ([G.Node], DAGWorkspace form ctxt hc)
+--backwardReason' :: (Eq form) 
