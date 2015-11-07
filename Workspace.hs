@@ -131,11 +131,11 @@ forwardProp ins ti destr hc form w =
     (\(n, w') -> (n, connectForwardProp ins n destr w')) $ findOrInsProp (==ti) ti hc form w
         
 --only spread goaliness to new nodes?
-backwardProp :: (Eq form) => G.Node -> hc -> [form] -> DAGWorkspace form ctxt hc -> ([G.Node], DAGWorkspace form ctxt hc)
-backwardProp out hc forms =
+backwardProp :: (Eq form) => G.Node -> TreeIndex -> hc -> [form] -> DAGWorkspace form ctxt hc -> ([G.Node], DAGWorkspace form ctxt hc)
+backwardProp out ti hc forms =
   runState $ do
     w <- get
-    let ti = fromJust (w ^. treeIndices . at out)
+--    let ti = fromJust (w ^. treeIndices . at out)
     --(TreeIndex -> Bool) -> TreeIndex -> form -> DAGWorkspace form ctxt hc -> (G.Node, DAGWorkspace form ctxt hc)
     nds <- sequence $ map (\f -> state (\w' -> findOrInsProp ((==Just True) . (`le` ti)) ti hc f w')) forms
     return nds
@@ -177,4 +177,14 @@ forwardReason' f destr ins ctxt w = maybeToList $
       return ((n, str), propagateKnowns w')
 
 -- G.Node -> hc -> [form] -> DAGWorkspace form ctxt -> ([G.Node], DAGWorkspace form ctxt hc)
---backwardReason' :: (Eq form) 
+backwardReason' :: (Eq form) => (ctxt -> form -> Maybe ([form], hc, str)) -> G.Node -> ctxt -> DAGWorkspace form ctxt hc -> [(([G.Node], str), DAGWorkspace form ctxt hc)]
+backwardReason' f out ctxt w = maybeToList $ 
+    do 
+      --get goal by looking up the node in the proposition graphs
+      let goal = w ^. (props . nodeLens out) 
+      --now apply f on it
+      (hyps, hc, str) <- f ctxt goal
+      let ti = fromJust $ w ^. (treeIndices . at out)
+      -- G.Node -> hc -> [form] -> DAGWorkspace form ctxt hc -> ([G.Node], DAGWorkspace form ctxt hc)
+      let (ns, w') = backwardProp out ti hc hyps w
+      return ((ns, str), propagateKnowns w')
