@@ -120,6 +120,23 @@ insertProp e destr hc form w =
                     else id)
       return (n, w')
 
+propagateKnowns' :: [G.Node] -> DAGWorkspace form ctxt hc -> DAGWorkspace form ctxt hc
+propagateKnowns' nds w = 
+    let
+        knowns = w ^. allKnown
+        (w2, remNds) = foldl (\(w', li) n -> if (all (`S.member` knowns) $ map snd (w' ^. (props . insLens n)))
+                                             --if all the predecessors are known, it is now known (note I'm not adding it to curKnowns)
+                                             then (w' & allKnown %~ S.insert n, li)
+                                             --else, n is still not known.
+                                             else (w', n:li)) (w, []) nds
+    in
+      if length nds == length remNds
+      --made no progress
+      then w2
+      else propagateKnowns' remNds w2
+
+propagateKnowns w = propagateKnowns' (filter (\x -> not $ x `S.member` (w ^. allKnown)) $ G.nodes (w ^. props)) w
+
 connectProp :: Either [G.Node] [G.Node] -> Bool -> hc -> G.Node -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
 connectProp e destr hc n w = 
     do
@@ -180,4 +197,41 @@ forwardReason' f destr nds ctxt w = maybeToList $
         Nothing -> (w & (insertProp (Left nds) destr hc concl))) 
                 --add the message
                 |> fmap (first (,str))
+--WARNING: the conclusion treeindex must be correct!
+--connectProp fails if not deepest treeidex, use to advantage?
+--TODO
 
+--is there a formula on the workspace that makes the same assumptions?
+findFormula :: (Eq form) => TreeIndex -> form -> DAGWorkspace form ctxt hc -> Maybe G.Node
+findFormula ti form w = fmap fst $ listToMaybe $ filter (\(n, l) -> l==form && ((w ^. treeIndices) M.! n) == ti) $ G.labNodes (w ^. props) 
+--or less
+--(isInitialSegment ((w ^. treeIndices) M.! n) ti)
+
+{-
+addOrFind :: TreeIndex -> form -> DAGWorkspace form ctxt hc -> G.Node
+addOrFind ti form w = 
+    let
+        maybeN = findFirstIndexOf (==form) $ G.labNodes (w ^. props)
+    in
+      case maybeN of
+        Just n -> 
+            case w -}
+{-
+backwardReason' :: (Eq form) => (ctxt -> form -> Maybe ([form], hc, str)) -> Bool -> [G.Node] -> ctxt -> DAGWorkspace form ctxt hc -> [((G.Node, str), DAGWorkspace form ctxt hc)]
+backwardReason' f destr nds ctxt w = maybeToList $ 
+    do 
+      --get hyps by looking up the nodes in the proposition graphs
+      let hyps = map (\x -> w ^. (props . nodeLens x)) nds 
+      --now apply f on them
+      (concl, hc, str) <- f ctxt hyps
+      let maybeN = findFirstIndexOf (==concl) $ G.labNodes (w ^. props)
+      --does the conclusion already exists in the graph?
+      (case maybeN of
+--connectProp :: Either [G.Node] [G.Node] -> Bool -> hc -> G.Node -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
+        --connect up the props 
+        Just n -> w & (connectProp (Left nds) destr hc n) 
+--insertProp :: Either [G.Node] [G.Node] -> Bool -> hc -> form -> DAGWorkspace form ctxt hc -> Maybe (G.Node, DAGWorkspace form ctxt hc)
+        Nothing -> (w & (insertProp (Left nds) destr hc concl))) 
+                --add the message
+                |> fmap (first (,str))
+-}
