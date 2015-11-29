@@ -155,6 +155,8 @@ Error message and password prompt
 
 <li>11/2/15</li>
 
+<li>11/28/15</li>
+
 <li>11/3/15</li>
 
 <li>11/7/15</li>
@@ -5504,7 +5506,7 @@ Error message and password prompt
 <div modified="20151128213652891" title="$:/state/tab/sidebar--1835078512">
 <pre>$:/core/ui/SideBar/Recent</pre>
 </div>
-<div list="Projects [[Table of Contents]] [[What's important]]" title="$:/StoryList">
+<div list="[[Table of Contents]] Todo 11/28/15 11/7/15" title="$:/StoryList">
 <pre></pre>
 </div>
 <div plugin-type="info" title="$:/temp/info-plugin" type="application/json">
@@ -5521,7 +5523,7 @@ Error message and password prompt
     }
 }</pre>
 </div>
-<div created="20151028152214183" modified="20151030144633229" title="$:/temp/NewTagName">
+<div created="20151028152214183" modified="20151129021208124" title="$:/temp/NewTagName">
 <pre></pre>
 </div>
 <div created="20151103134932066" modified="20151107142320743" title="$:/temp/search">
@@ -5911,6 +5913,40 @@ Is this basically the implementation of Parsec? Or is it doing something more cl
 
 Now I'm thinking I should make workspace an instance of Parser! Use my own parser, or parsec? The thing with parsec is I have to make Workspace an instance of Stream, which could be awkward... probably better to use my own, port over later if I have reason to.</pre>
 </div>
+<div created="20151129020058246" modified="20151129022040400" tags="FRP [[type inference]] Elm" title="11/28/15">
+<pre>Over the past few weeks I did the following.
+
+* Wrote Hindley-Milner type inference. https://github.com/holdenlee/type-zoo This was harder to do on my own that I thought (I should have read the algorithm properly first) - I eventually drew on Stephen Diehl's code. 
+* Learned about FRP in Haskell, and installed Helm (with much pain, http://stackoverflow.com/questions/33930203/installing-cairo-helm-on-windows). Built Sokoban in elm then in Helm (https://github.com/holdenlee/Sokoban). Helm isn't mature - it's missing a lot of stuff right now (ex. no Signal.filter, Signal.dropRepeats - I had to implement these manually). Read up on FRP. There's lots more to look into here. Some links
+** (Evan C's presentation on flavors of FRP - link?)
+** https://wiki.haskell.org/FRP_explanation_using_reactive-banana 
+** http://hackage.haskell.org/package/reactive-banana (Reactive banana seems most promising right now...)
+** https://hackage.haskell.org/package/elerea-2.8.0/docs/FRP-Elerea-Simple.html
+** Question: how can I have a REPL and a windowed app running at the same time, and be able for the command line to send commands to the app? (Ex. write functions Model -&gt; Model, and the model changes)
+* Can you have a dependent pair in Haskell? How to read the type at runtime? You can do this!
+** http://stackoverflow.com/questions/28243383/how-can-i-read-the-metadata-of-a-type-at-runtime
+** http://hackage.haskell.org/package/plugins-1.5.1.4/docs/System-Eval-Haskell.html
+** http://stackoverflow.com/questions/18821097/can-i-create-a-function-at-runtime-by-evaluating-a-string
+* Wrote my thoughts for an AI book, in the style of FARG with actual code snippets, &quot;RYaAI&quot;, file:///C:/Users/Owner/Dropbox/Diary/thoughts.html#RYaAI
+
+Some directions
+
+* High priority
+** Work on the LSTM!!!
+* Medium priority
+** See [[11/7/15]]: Look at Coq!!! Learn more about type theory, HoTT, etc.
+* Lower priority
+** Continue theorem-prover. Simplify in the style of S Diehl's beautiful code. 
+** Implement DTT: http://math.andrej.com/2012/11/08/how-to-implement-dependent-type-theory-i/
+** Lots of project ideas at [[Projects]]
+** Port elm-world to FRP in Haskell. (The dependent types thing looks promising for having heterogeneous actors.)
+
+Other links to read
+** https://wiki.haskell.org/MonadFix - about time to learn mdo...
+** https://github.com/gelisam/frp-zoo
+
+</pre>
+</div>
 <div created="20151103132839766" modified="20151103140907327" title="11/3/15">
 <pre>I renamed Parser to Nondet, and them used Nondet to build Tactic the right way. https://github.com/holdenlee/theorem-prover/tree/6535d70211bb222e781898f85171ee4364e715a5
 
@@ -6157,7 +6193,7 @@ Nondet $ StateT $ do
 
 ```</pre>
 </div>
-<div created="20150114162617584" modified="20151107142553535" tags="" title="Table of Contents">
+<div created="20150114162617584" modified="20151129022156242" tags="" title="Table of Contents">
 <pre>I document my adventures in...
 
 * learning programming languages, in particular, Haskell (#pl, #haskell)
@@ -6168,6 +6204,8 @@ Nondet $ StateT $ do
 ** Thinking about human intelligence and strange loops in general
 * Building a IFV/ATP system from the ground up https://github.com/holdenlee/theorem-prover
 * Learning Coq and other languages for formalization, and other dependently typed programming languages.
+
+Master list of [[Projects]]
 
 My thoughts on [[What's important]]. [[Todo]].
 
@@ -6180,12 +6218,17 @@ By date
 * [[11/2/15]]: Workspace; understand parsing.
 * [[11/3/15]]: Use the nondeterministic monad from parsing to make Tactic.
 * [[11/7/15]]: Forward, backwards, and unfolding for Workspace. Start specializing for PropLogicWorkspace
+* [[11/28/15]]
 </pre>
 </div>
-<div created="20151102145203144" modified="20151102145933038" title="Todo">
-<pre>* Implement an algorithm for Hindley-Milner type inference. ([[10/27/15]])
-* Write a baby parser. ([[11/2/15]])
-* Rewrite the rest of theorem-prover. (11/2/15)</pre>
+<div created="20151102145203144" modified="20151129022158995" title="Todo">
+<pre>* Rewrite the rest of theorem-prover. (11/2/15)
+
+!Done
+
+* Implement an algorithm for Hindley-Milner type inference. (set [[10/27/15]], done [[11/28/15]])
+* Write a baby parser. ([[11/2/15]], done)
+</pre>
 </div>
 <div created="20151030143533053" modified="20151030144800586" tags="ATP" title="What's important" type="">
 <pre>What are some important things to be doing?
