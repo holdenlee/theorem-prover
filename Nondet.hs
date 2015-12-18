@@ -8,6 +8,10 @@ newtype Nondet s a = Nondet (s -> [(a,s)])
 
 runNondet (Nondet f) = f
 
+evalNondet (Nondet f) = map fst . f
+
+execNondet (Nondet f) = map snd . f
+
 instance Functor (Nondet s) where
   fmap f (Nondet g) = Nondet $ map (first f) . g
 

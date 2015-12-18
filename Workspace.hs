@@ -38,10 +38,6 @@ data BoxContext = BoxContext {_assms :: [G.Node]}
 
 type TreeIndex = [Int]
 
-{-
-data FormulaInfo a = FormulaInfo {_howConclude :: a
-                   , _treeIndex :: TreeIndex}-}
-
 data DAGWorkspace form ctxt hc = DAGWorkspace { _props:: G.Gr form Int
 -- the graph shows the base dependencies of each node.
                                               , _contextTree :: Tree ctxt
@@ -63,6 +59,7 @@ lookupTI ti tree =
     [] -> rootLabel tree
     h:rest -> lookupTI rest (children!!h)
 
+{-| Insert ctxt as the next child of the specified node of the tree. -}
 insertTI :: ctxt -> TreeIndex -> Tree ctxt -> (Int, Tree ctxt)
 insertTI ctxt ti tree =
   let children = subForest tree
@@ -75,19 +72,12 @@ insertTI ctxt ti tree =
       in
        (n, tree & (branches . ix h) .~ t)
 
---data WContext form = WContext {_library :: M.Map String form}
-                             -- _symbolLib :: SymbolLib
-                    --see old Type.hs
-
 instance (Pointed BoxContext) where
   point = BoxContext point
 
 --figure out how to do this with template haskell, etc.!
 instance (Pointed ctxt, Pointed hc) => Pointed (DAGWorkspace form ctxt hc) where
   point = DAGWorkspace {_props = point, _contextTree = point, _treeIndices = point, _howConclude = point, _allKnown = point, _currentKnown = point, _currentGoals = point, _focus = point}
-
-{-instance (Pointed form) => (Pointed (WContext form)) where
-  point = WContext {_library = point}-}
 
 makeLenses ''DAGWorkspace
 
@@ -101,7 +91,7 @@ instance PartialOrd TreeIndex where
                     (Nothing, Just _) -> Just GT
                     _ -> Nothing
 
---pointed is minimum
+--pointed is minimum. rename as "findExtremal"
 findRecord :: (PartialOrd a, Pointed a) => [a] -> Maybe a
 findRecord = foldl (\x y -> x >>= (\x' -> do
                       case cmp x' y of
@@ -109,6 +99,7 @@ findRecord = foldl (\x y -> x >>= (\x' -> do
                         Just LT -> Just y
                         _ -> Just x')) (Just point)
 
+{-| Get un unused index in the workspace. -}
 wNewNode :: DAGWorkspace form ctxt hc -> G.Node
 wNewNode w = (G.newNodes 0 (w ^. props))!!0
 
