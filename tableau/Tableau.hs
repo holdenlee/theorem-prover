@@ -12,9 +12,9 @@ import Prop
 
 import IOUtils
 
+deriveFmap ''Prop'
 
-
-$inst
+-- $inst
 
 -- $([d|instance Functor Prop' where $deriv|])
 --not allowed
