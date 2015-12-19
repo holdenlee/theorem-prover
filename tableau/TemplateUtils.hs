@@ -7,6 +7,7 @@
 module TemplateUtils where
 
 import Language.Haskell.TH
+import Control.Applicative
 import Control.Monad
 import Control.Lens
 
@@ -26,8 +27,8 @@ conNameToExp :: [Exp] -> Name -> Q Exp
 conNameToExp exps name = return (apps $ (ConE name):exps)
 
 --only works with 1 type variable right now
-deriveFmap :: Name -> Q [Dec]
-deriveFmap name = do
+deriveFunctor :: Name -> Q [Dec]
+deriveFunctor name = do
   f <- newName "f"
   info <- reify name
   -- data DataName tv = ... 
@@ -45,4 +46,35 @@ deriveFmap name = do
   matches <- mapM exprPatToMatch conListWithExprs
   [d|instance Functor $(conT dataName) where
         fmap $(varP f) = $(return $ LamCaseE matches)|]
-          
+
+deriveApplicative :: Name -> Name -> Q [Dec]
+deriveApplicative pureCon name = do
+  info <- reify name
+  -- data DataName tv = ... 
+  let TyConI (DataD _ dataName [KindedTV tv StarT] li _) = info
+  x <- newName "x"
+  [d|instance Applicative $(conT dataName) where
+        pure $(varP x) = $(return $ AppE (ConE pureCon) (VarE x))
+        (<*>) = ap|]
+
+deriveMonad :: [Name] -> Name -> Q [Dec]
+deriveMonad pureCons name = do
+  f <- newName "f"
+  info <- reify name
+  -- data DataName tv = ... 
+  let TyConI (DataD _ dataName [KindedTV tv StarT] li _) = info
+  conList <- mapM constructorToPattern li
+  let mapAccordingToType = (\(x, ty) ->
+        if ty == AppT (ConT name) (VarT tv) then AppE (AppE (VarE '(>>=)) (VarE x)) (VarE f) 
+                                                     else VarE x)
+  let exprPatToMatch (varAndTypes, pat, conName) =
+        do
+          e1 <- if conName `elem` pureCons
+                then return $ AppE (VarE f) (VarE $ fst $ varAndTypes!!0)
+                     --only one here...
+                else conNameToExp (map mapAccordingToType varAndTypes) conName
+          return $ Match pat (NormalB e1) []
+  matches <- mapM exprPatToMatch conList
+  x <- newName "x"
+  [d|instance Monad $(conT dataName) where
+        (>>=) $(varP x) $(varP f) = $(return $ CaseE (VarE x) matches)|]

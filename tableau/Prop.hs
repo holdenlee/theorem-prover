@@ -18,7 +18,7 @@ data Prop' p = Prop' p | Implies (Prop' p) (Prop' p) | Iff (Prop' p) (Prop' p) |
 
 type Prop = Prop' PAtom
 
-deriveFmap ''Prop'
+deriveFunctor ''Prop'
 --this automatically generates the following.
 {-
 instance Functor Prop' where
@@ -29,3 +29,5 @@ instance Functor Prop' where
     And x1 x2 -> And (fmap f x1) (fmap f x2)
     Not x1 -> Not (fmap f x1)
 -}
+deriveApplicative 'Prop' ''Prop'
+deriveMonad ['Prop'] ''Prop'
