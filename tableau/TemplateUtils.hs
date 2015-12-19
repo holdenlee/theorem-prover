@@ -10,6 +10,7 @@ import Language.Haskell.TH
 import Control.Applicative
 import Control.Monad
 import Control.Lens
+import Data.Traversable
 
 {-| given a constructor, get a pattern for the constructor, and the names and types of the variables. -}
 constructorToPattern :: Con -> Q ([(Name, Type)], Pat, Name)
@@ -47,6 +48,32 @@ deriveFunctor name = do
   [d|instance Functor $(conT dataName) where
         fmap $(varP f) = $(return $ LamCaseE matches)|]
 
+deriveTraversable :: Name -> Q [Dec]
+deriveTraversable name = do
+  f <- newName "f"
+  info <- reify name
+  -- data DataName tv = ... 
+  let TyConI (DataD _ dataName [KindedTV tv StarT] li _) = info
+  conList <- mapM constructorToPattern li
+  -- no support for empty constructors right now.
+  let mapAccordingToType = (\(x, ty) ->
+        if ty == VarT tv then AppE (VarE f) (VarE x)
+        else if ty == AppT (ConT name) (VarT tv) then AppE (AppE (VarE 'traverse) (VarE f)) (VarE x)
+                                                     else VarE x)
+--                                                     :: (Name, Type) -> Exp
+  let conListWithExprs = map (\z -> z & _1 %~ (map mapAccordingToType)) conList
+  let exprPatToMatch (exprs, pat, conName) = do
+        e1 <- foldl (\x y -> do {x'<-x; return $ AppE (AppE (VarE '(<*>)) x') y}) 
+                    (return $ apps [(VarE '(<$>)), ConE conName, (exprs!!0)]) 
+                    (tail exprs)
+        return $ Match pat (NormalB e1) []
+  matches <- mapM exprPatToMatch conListWithExprs
+  [d|instance Foldable $(conT dataName) where
+        foldMap = foldMapDefault
+     instance Traversable $(conT dataName) where
+        traverse $(varP f) = $(return $ LamCaseE matches)|]
+
+                                                                  
 deriveApplicative :: Name -> Name -> Q [Dec]
 deriveApplicative pureCon name = do
   info <- reify name

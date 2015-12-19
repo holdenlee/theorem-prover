@@ -12,9 +12,9 @@ import TemplateUtils
 
 type PName = String
 
-data PAtom = PName PName | PVar Int
+data PAtom = PName PName | PVar Int deriving (Show, Eq)
 
-data Prop' p = Prop' p | Implies (Prop' p) (Prop' p) | Iff (Prop' p) (Prop' p) | And (Prop' p) (Prop' p) | Or (Prop' p) (Prop' p) | Not (Prop' p) deriving Show
+data Prop' p = Prop' p | Implies (Prop' p) (Prop' p) | Iff (Prop' p) (Prop' p) | And (Prop' p) (Prop' p) | Or (Prop' p) (Prop' p) | Not (Prop' p) deriving (Show, Eq)
 
 type Prop = Prop' PAtom
 
@@ -31,3 +31,4 @@ instance Functor Prop' where
 -}
 deriveApplicative 'Prop' ''Prop'
 deriveMonad ['Prop'] ''Prop'
+deriveTraversable ''Prop'
