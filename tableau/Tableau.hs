@@ -71,11 +71,24 @@ findStmt p i w =
   fmap fst |>
   listToMaybe
 
+findCurStmt p i w = findStmt p (w ^. cur) w
+
+findCurGoal p i w = findGoal p (w ^. cur) w
+
+findGoal :: Prop -> Int -> Workspace -> Maybe Int
+findGoal p i w =
+  S.map (appendFun ((w ^. statements) M.!)) (w ^. contexts . ix i . concl) |>
+  S.toList |>
+  filter ((==p) . snd) |>
+  fmap fst |>
+  listToMaybe
+
 addStmt :: Prop -> Int -> Workspace -> Workspace
 addStmt p i w =
   let n = w ^. num
   in w & statements . ix n .~ p
        & contexts . ix i . assms %~ S.insert n
+       & incrementNum
 --       & proofs . at num .~ pf
        --assms should be called knowns
 
@@ -86,10 +99,21 @@ addConcl p i w =
   let n = w ^. num
   in w & statements . ix n .~ p
        & contexts . ix i . concl %~ S.insert n
+       & incrementNum
 --       & proofs . at num .~ Pure num
        --assms should be called knowns
 
 addConclAtCur p w = addConcl p (w ^. cur) w
+
+removeConcl :: Int -> Int -> Workspace -> Workspace
+removeConcl j i w =
+  let n = w ^. num
+  in w & contexts . ix i . concl %~ S.delete j
+--       & proofs . at num .~ Pure num
+       --assms should be called knowns
+
+removeConcl j i w = addConcl j (w ^. cur) w
+
 
 --should make this a lens
 curContext :: Workspace -> Context
@@ -101,13 +125,17 @@ curAssms w = map (appendFun $ ((w ^. statements) M.!)) (S.toList ((curContext w)
 curConcl :: Workspace -> [(Int, Prop)]
 curConcl w = map (appendFun $ ((w ^. statements) M.!)) (S.toList ((curContext w) ^. concl))
 
+moveConclToKnown :: Int -> Workspace -> Workspace
+moveConclToKnown n = w & contexts . ix (w ^. cur) . concl %~ (S.delete n)
+                       & contexts . ix (w ^. cur) . assms %~ (S.insert n)
+
 changeContextIfDone :: Workspace -> Workspace
 changeContextIfDone w = if null (curConcl w)
                         then
                           let 
                             unp = w ^. unproven
                             unp' = S.delete (w ^. cur) unp'
-                            m = S.findMin unp'
+                            m = if S.empty unp' then -1 else S.findMin unp'
                           in
                             w & unproven .~ unp' 
                               & cur .~ m
@@ -116,17 +144,21 @@ changeContextIfDone w = if null (curConcl w)
 incrementNum :: Workspace -> Workspace
 incrementNum = num %~ (+1)
 
-copyContextReplacingConcl :: Int -> Prop -> Workspace -> Workspace
-copyContextReplacingConcl i pr w =
+copyContextReplacingConcl :: Int -> [Prop] -> Workspace -> Workspace
+copyContextReplacingConcl i prs w =
   let
     n = w ^. num
+    news = [n..(n + (length prs) - 1)]
   in
-   w & contexts %~ (++[curContext w & concl .~ (S.singleton n)])
+   w & contexts %~ (++[(w ^. contexts . ix i) & concl .~ (S.fromList news)])
+     & statements %~ (foldIterate M.insert (zipWith news prs))
+     & foldIterate addDummyProof [n..(n + (length prs) - 1)]
      & unproven %~ (S.insert (length (w ^. contexts)))
-     & addDummyProof n
      & incrementNum
 
 copyCurContextReplacingConcl pr w = copyContextReplacingConcl (w ^. cur) pr w
+
+forwardReason dr s li = tryDo (forwardReason' dr s li)
 
 forwardReason' :: DeductionRule -> [(Int,Prop)] -> [Int] -> Workspace -> Maybe Workspace
 forwardReason' dr s li w = do
@@ -143,17 +175,63 @@ forwardReason' dr s li w = do
   let allVarsInst = S.fromList [1..(dr ^. args)] `S.isSubsetOf` (S.fromList $ M.keys s2)
       --have we instantiated all the variables?
   guard allVarsInst
+  guard (null addlAssms) -- this makes things much simpler.
   let arguments1 = map (Prop' . PVar) (M.keys s2)
+  let arguments2 = map Pure li
+  return (w -- - |> copyCurContextReplacingConcl addlAssms
+            |> addStmtAtCur conw
+            |> (addProof $ M.singleton (n+(length addlAssms)+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+            |> changeContextIfDone)
+      {-
+  let doToW = case (findGoal con w) of
+                   Nothing -> addStmtAtCur conw
+                    >> incrementNum
+                    >> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+                   Just i -> (addProof $ M.singleton i (Free (Proof' (dr ^. name) arguments1 arguments2)))
+                    >> moveConclToKnown i
+  return (w |> doToW)-}
+{-
+let arguments1 = map (Prop' . PVar) (M.keys s2)
   let arguments2 = map Pure (li++[w ^. num, (w ^. num) + (length addlAssms) - 1])
-  if null addlAssms
-     then return (w |> addStmtAtCur con
-                    |> incrementNum
-                    |> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2))))
-     else return (w |> addStmtAtCur con
-                    |> incrementNum
-                    |> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
-                    |> foldIterate copyCurContextReplacingConcl addlAssms)
-            
-          
---[Prop] -> [Prop] -> Maybe (M.Map Int Prop)
+  let doToW = case (findGoal con w) of
+                   Nothing -> addStmtAtCur con
+                    >> incrementNum
+                    >> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+                    >>foldIterate copyCurContextReplacingConcl addlAssms
+                   Just i -> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+                    >> moveConclToKnown i
+                    >> foldIterate copyCurContextReplacingConcl addlAssms
+  return (w |> doToW)-}
 
+backwardReason dr s cnum = tryDo (backwardReason' dr s cnum)
+
+--[(Int, Prop)] -> [Prop] -> Prop -> Prop -> Maybe (M.Map Int Prop, [Prop])
+backwardReason' :: DeductionRule -> [(Int,Prop)] -> Int -> Workspace -> Maybe Workspace
+backwardReason' dr s cnum w = do
+  let n = w ^. num
+  let goalInContext = cnum `elem` (map fst $ curConcl w)
+  let conc = (w ^. statements) M.! cnum
+  let drAssms = dr ^. assms
+  let drConcl = dr ^. concl
+  let liLen = length li
+  (s2, subbedKnown) <- backward s drAssms drConcl conc
+  guard goalInContext
+          -- assumptions not included
+  let allVarsInst = S.fromList [1..(dr ^. args)] `S.isSubsetOf` (S.fromList $ M.keys s2)
+      --have we instantiated all the variables?
+  let withMaybeIndices = map (appendFun $ findCurStmt) subbedKnown --need to contain indices!!!
+  let (ct, newList, toAdd) = 
+                for withMaybeIndices (1, [], []) (\(p, maybeIndex) (i, li', li2) -> case maybeIndex of
+                                                                            Nothing -> (i+1, li'++[(p, n+i)], li2++[p])
+                                                                            Just y -> (i, li'++[(p, y)], li2)
+--  let (found, notFound) = partition (isJust . snd) withMaybeIndices
+  guard allVarsInst
+  let arguments1 = map (Prop' . PVar) (M.keys s2)
+  let arguments2 = map (Pure . snd) newList
+  if length (curConcl w) == 1
+     then w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+            & removeConclAtCur cnum
+            & foldIterate addConclAtCur toAdd
+     else w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+            & copyCurContextReplacingConcl toAdd
+            & removeConclAtCur cnum

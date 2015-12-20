@@ -63,6 +63,14 @@ returns maybe the substitution and the conclusion
 forward :: [(Int, Prop)] -> [Prop] -> [Prop] -> Prop -> Maybe (M.Map Int Prop, Prop)
 forward s li1 li2 concl = fmap (appendFun $ flip sub concl) (pmatch s li1 li2)
 
+{-| Given
+* initial substitution
+* assumption patterns, ex. [?1, ?2]
+* conclusion pattern, ex. ?1 /\ ?2
+* a conclusion, ex. P /\ Q,
+returns maybe the substitution and the hypotheses
+* Just (fromList [(1, P), (2, Q)], [P, Q])
+-}
 backward :: [(Int, Prop)] -> [Prop] -> Prop -> Prop -> Maybe (M.Map Int Prop, [Prop])
 backward s li c1 c2 = fmap (appendFun $ \x -> map (sub x) li) (pmatch s [c1] [c2])
 
