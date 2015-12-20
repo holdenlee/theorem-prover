@@ -161,6 +161,12 @@ Error message and password prompt
 
 <li>11/7/15</li>
 
+<li>12/18/15</li>
+
+<li>12/19/15</li>
+
+<li>12/5/15</li>
+
 <li>Bugs catalog</li>
 
 <li>Projects</li>
@@ -5506,7 +5512,7 @@ Error message and password prompt
 <div modified="20151128213652891" title="$:/state/tab/sidebar--1835078512">
 <pre>$:/core/ui/SideBar/Recent</pre>
 </div>
-<div list="[[Table of Contents]] Todo 11/28/15 11/7/15" title="$:/StoryList">
+<div list="11/28/15 12/5/15 12/18/15 [[Table of Contents]] 12/19/15" title="$:/StoryList">
 <pre></pre>
 </div>
 <div plugin-type="info" title="$:/temp/info-plugin" type="application/json">
@@ -5523,7 +5529,7 @@ Error message and password prompt
     }
 }</pre>
 </div>
-<div created="20151028152214183" modified="20151129021208124" title="$:/temp/NewTagName">
+<div created="20151028152214183" modified="20151205161936378" title="$:/temp/NewTagName">
 <pre></pre>
 </div>
 <div created="20151103134932066" modified="20151107142320743" title="$:/temp/search">
@@ -5913,7 +5919,7 @@ Is this basically the implementation of Parsec? Or is it doing something more cl
 
 Now I'm thinking I should make workspace an instance of Parser! Use my own parser, or parsec? The thing with parsec is I have to make Workspace an instance of Stream, which could be awkward... probably better to use my own, port over later if I have reason to.</pre>
 </div>
-<div created="20151129020058246" modified="20151129022040400" tags="FRP [[type inference]] Elm" title="11/28/15">
+<div created="20151129020058246" modified="20151129023716366" tags="FRP [[type inference]] Elm" title="11/28/15">
 <pre>Over the past few weeks I did the following.
 
 * Wrote Hindley-Milner type inference. https://github.com/holdenlee/type-zoo This was harder to do on my own that I thought (I should have read the algorithm properly first) - I eventually drew on Stephen Diehl's code. 
@@ -5945,7 +5951,8 @@ Other links to read
 ** https://wiki.haskell.org/MonadFix - about time to learn mdo...
 ** https://github.com/gelisam/frp-zoo
 
-</pre>
+Random
+* If you give up purity, you can write fluidity in a more FRP style...</pre>
 </div>
 <div created="20151103132839766" modified="20151103140907327" title="11/3/15">
 <pre>I renamed Parser to Nondet, and them used Nondet to build Tactic the right way. https://github.com/holdenlee/theorem-prover/tree/6535d70211bb222e781898f85171ee4364e715a5
@@ -6049,6 +6056,54 @@ Now you can just do
 f (unwrap -&gt; x) = ...
 ```
 instead of remembering what the wrapper/unwrapper names are.</pre>
+</div>
+<div created="20151219132244677" modified="20151219134112457" tags="" title="12/18/15">
+<pre>https://github.com/holdenlee/theorem-prover/tree/5d7f0c61e31df2951d71e7ae7424f564a4de0246
+
+* Learned Template Haskell, and wrote an auto-deriving mechanism for Functor, Applicative, and Monad for tree-like datatypes.
+** Doc: [[https://downloads.haskell.org/~ghc/latest/docs/html/libraries/template-haskell-2.10.0.0/Language-Haskell-TH.html#t:Info]]
+** https://www.fpcomplete.com/user/marcin/template-haskell-101
+** http://www.hyperedsoftware.com/blog/entries/first-stab-th.html
+** https://github.com/leonidas/codeblog/blob/master/2011/2011-12-27-template-haskell.md
+** https://gist.github.com/shangaslammi/1524967
+** https://www.reddit.com/r/haskell/comments/3gobyh/guidetutorial_for_template_haskell/
+** https://www.fpcomplete.com/user/marcin/quasiquotation-101
+** http://illustratedhaskell.org/index.php/2011/09/24/template-haskell-tutorial/
+** https://ocharles.org.uk/blog/guest-posts/2014-12-22-template-haskell.html
+** Cool application of template haskell for more generalized pattern matching: 
+*** https://github.com/colah/HaskSymb, https://github.com/colah/Pattern-Power
+* Used Language.Haskell.Interpreter to make a command-line program where you can type in Haskell functions to modify the current state.
+</pre>
+</div>
+<div created="20151220162311544" modified="20151220170613802" title="12/19/15">
+<pre>* I learned quasiquotation from the tutorial https://wiki.haskell.org/Quasiquotation and implemented it here https://github.com/holdenlee/theorem-prover/blob/695fc0b610406eee7fa2bbed1b65d799aab877e1/tableau/QQ.hs.
+** One thing that's kind of hacky is that I have to reflect for Prop' (WithVar String PAtom) first, and then removeVars to get Prop' PAtom.
+** TODO: make outer parentheses (...) unnecessary.
+** Example: ex = [prop|(P -&gt; ((P -&gt; Q) -&gt; ((P -&gt; (Q -&gt; R)) -&gt; R)))|]
+** Parentheses are necessary now. Todo: make a parser where I can easily swap out the symbols, and offer support for infix and mixfix with precedence. Operate on the LeafTree directly - it's an extra layer in the middle but I like not having to deal directly with a parser. I think this makes it easier to modularize, but this will only work for LISP like languages. (In particular, it has to be context-free - i.e., the state shouldn't depend on the strings that you parse.)
+* I finished a draft of Tableau. Some thoughts:
+** Proof compilation doesn't work right yet because mcompose doesn't recursively substitute. Really what it should do is to do a topological sort at the end, rather than trying to substitute in the middle.
+** Add a proof checker. (So we don't have to substitute everything, topological sort is ok to give a &quot;straight-line&quot; proof.)
+** This is a proof of concept. I want to be able to explain it in a blog post.
+** The TreeIndex thing is actually very nice. I think it would have been better to use it.
+** Need to do some tests covering all cases.
+** Free Monad is cleaner than the equivalent without Free, even using Template Haskell to do all the derivings. Especially now I've found Pattern Synonyms, https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/syntax-extns.html#pattern-synonyms and https://ocharles.org.uk/blog/posts/2014-12-03-pattern-synonyms.html (I was trying to do everything with LeafTree before. That seems a bit too abstract? Perhaps ground in a concrete Free f, rather than using Free []. Alternatively, just use pattern synonyms.)
+** What can I learn from this experience in implementing the main theorem-prover?
+*** I did this because it contains the essential features of what I want (minus the graph stuff), and is small enough so the code wouldn't be too sprawling. It is still kind of sprawling. Hopefully I can learn from this smaller design project to make the code nicer.
+*** Write things that are callable as functions in ghci, http://chrisdone.com/posts/haskell-repl. I wanted to ship a whole Haskell interpreter (Hint) with the program, but ran into many problems (http://hub.darcs.net/jcpetruzza/hint/issue/9). I don't know how to ship a Haskell interpreter with the program in a nonclunky way, but you can always just optimize it for ghci. Apply functions (state, Workspace) -&gt; (state, Workspace) to see it transform! It's good to have different versions of functions (ex. w -&gt; State w a, w -&gt; (w, a)), the unfolded one is easier to work with/test on the REPL, and it's one line to add one function given the other. Same thing with recursive functions (&quot;fix&quot;) - make them steppable. Go back to Sudoku and Search and make it all steppable. This is a good way to modularize.
+*** There's a lot of cases involved, and I have to make somewhat arbitrary decisions about when to make a new context, when to replace an old one, etc. (Also, right now, new contexts get pushed to the end, another reason to switch to tree index.) Ex. I spent a lot of time thinking of whether I should have 1 conclusion or multiple conclusions. These are really ancillary, but I have to deal with them. Hopefully the graph version will be more intuitive.
+*** Especially: what to do when the user gives incomplete info? Right now it just fails, but it would be good to write smarter things that can attempt to guess the substitutions. How could I make it easy for the user (someone other than me) to write these guessing functions? Need to expose an easy type signature. Ex. M.Map Int Prop -&gt; [([(Maybe Int, Prop)], M.Map Int Prop)], give guesses for the arguments and the substituted propositions, and give the substitutions for the (implicit) variables. I think Coq has nice pattern-matching, can you learn from that? A good pattern-matching system is essential. (Give some possibilities to the user and wait for a reply.)
+*** Make some things monadic. I've already done this, but not making a MonadSupply in Tableau meant I had to shuffle around unique integers. Yuck.
+*** Pseudocode before you code. I keep saying this. DO IT.
+*** &quot;Compiling down&quot; is a feature I'll need to have. (It also gives things in exportable format). Any topological sort will work, but some will be more intuitive than others, ex. the one actually followed. (Don't substitute, just top-sort.)
+* Puzzle utilities: definitely make a lot of ghci-easily-usable things.
+* Ideas
+** Write a TeX file (or anything else) as a quasiquoted expression?</pre>
+</div>
+<div created="20151205161849817" modified="20151205162031358" tags="linguistics monad" title="12/5/15">
+<pre>Wrote a Memo monad today. learning/Memo.hs. Basically the core part of http://hackage.haskell.org/package/monad-memo.
+
+(Interesting: how do you write a lambda expression in English? Tom, who had the procedure done to him = (\x -&gt; have procedure done to x) Tom. Variables are pronouns. Can you do anything you want with this? If you only had functions, ex. Tom, who won = won Tom, you can do less. Who is such that? Tom, who was sent flowers by Jill - this is grammatically better but has a reversal. Tom, who is such that Jill sent him flowers. Money that Tom sent Jill = (Tom sent Jill _) money.)</pre>
 </div>
 <div created="20151102155815853" modified="20151102172042298" tags="" title="Bugs catalog">
 <pre>What kinds of bugs do I often make while programming? I'm cataloging them to see if I can fix them.
@@ -6193,7 +6248,7 @@ Nondet $ StateT $ do
 
 ```</pre>
 </div>
-<div created="20150114162617584" modified="20151129022156242" tags="" title="Table of Contents">
+<div created="20150114162617584" modified="20151220162251347" tags="" title="Table of Contents">
 <pre>I document my adventures in...
 
 * learning programming languages, in particular, Haskell (#pl, #haskell)
@@ -6218,8 +6273,10 @@ By date
 * [[11/2/15]]: Workspace; understand parsing.
 * [[11/3/15]]: Use the nondeterministic monad from parsing to make Tactic.
 * [[11/7/15]]: Forward, backwards, and unfolding for Workspace. Start specializing for PropLogicWorkspace
-* [[11/28/15]]
-</pre>
+* [[11/28/15]]: Hindley-Milner type inference, functional reactive programming, AI thoughts
+* [[12/5/15]]: Monad Memo. English in Haskell?
+* [[12/18/15]]: Learn Template Haskell, start writing tableau prover
+* [[12/19/15]]: Learn quasiquotation, use it for propositions. Finish draft of tableau prover.</pre>
 </div>
 <div created="20151102145203144" modified="20151129022158995" title="Todo">
 <pre>* Rewrite the rest of theorem-prover. (11/2/15)
