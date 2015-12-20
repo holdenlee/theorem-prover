@@ -71,9 +71,9 @@ findStmt p i w =
   fmap fst |>
   listToMaybe
 
-findCurStmt p i w = findStmt p (w ^. cur) w
+findCurStmt p w = findStmt p (w ^. cur) w
 
-findCurGoal p i w = findGoal p (w ^. cur) w
+findCurGoal p w = findGoal p (w ^. cur) w
 
 findGoal :: Prop -> Int -> Workspace -> Maybe Int
 findGoal p i w =
@@ -112,7 +112,7 @@ removeConcl j i w =
 --       & proofs . at num .~ Pure num
        --assms should be called knowns
 
-removeConcl j i w = addConcl j (w ^. cur) w
+removeConclAtCur j w = removeConcl j (w ^. cur) w
 
 
 --should make this a lens
@@ -126,8 +126,8 @@ curConcl :: Workspace -> [(Int, Prop)]
 curConcl w = map (appendFun $ ((w ^. statements) M.!)) (S.toList ((curContext w) ^. concl))
 
 moveConclToKnown :: Int -> Workspace -> Workspace
-moveConclToKnown n = w & contexts . ix (w ^. cur) . concl %~ (S.delete n)
-                       & contexts . ix (w ^. cur) . assms %~ (S.insert n)
+moveConclToKnown n w = w & contexts . ix (w ^. cur) . concl %~ (S.delete n)
+                         & contexts . ix (w ^. cur) . assms %~ (S.insert n)
 
 changeContextIfDone :: Workspace -> Workspace
 changeContextIfDone w = if null (curConcl w)
@@ -135,7 +135,7 @@ changeContextIfDone w = if null (curConcl w)
                           let 
                             unp = w ^. unproven
                             unp' = S.delete (w ^. cur) unp'
-                            m = if S.empty unp' then -1 else S.findMin unp'
+                            m = if S.null unp' then -1 else S.findMin unp'
                           in
                             w & unproven .~ unp' 
                               & cur .~ m
@@ -150,8 +150,8 @@ copyContextReplacingConcl i prs w =
     n = w ^. num
     news = [n..(n + (length prs) - 1)]
   in
-   w & contexts %~ (++[(w ^. contexts . ix i) & concl .~ (S.fromList news)])
-     & statements %~ (foldIterate M.insert (zipWith news prs))
+   w & contexts %~ (++[(fromJust (w ^? contexts . ix i)) & concl .~ (S.fromList news)])
+     & statements %~ insertMultiple (zipWith (,) news prs)
      & foldIterate addDummyProof [n..(n + (length prs) - 1)]
      & unproven %~ (S.insert (length (w ^. contexts)))
      & incrementNum
@@ -179,7 +179,7 @@ forwardReason' dr s li w = do
   let arguments1 = map (Prop' . PVar) (M.keys s2)
   let arguments2 = map Pure li
   return (w -- - |> copyCurContextReplacingConcl addlAssms
-            |> addStmtAtCur conw
+            |> addStmtAtCur con
             |> (addProof $ M.singleton (n+(length addlAssms)+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
             |> changeContextIfDone)
       {-
@@ -213,25 +213,23 @@ backwardReason' dr s cnum w = do
   let conc = (w ^. statements) M.! cnum
   let drAssms = dr ^. assms
   let drConcl = dr ^. concl
-  let liLen = length li
   (s2, subbedKnown) <- backward s drAssms drConcl conc
   guard goalInContext
           -- assumptions not included
   let allVarsInst = S.fromList [1..(dr ^. args)] `S.isSubsetOf` (S.fromList $ M.keys s2)
       --have we instantiated all the variables?
-  let withMaybeIndices = map (appendFun $ findCurStmt) subbedKnown --need to contain indices!!!
-  let (ct, newList, toAdd) = 
-                for withMaybeIndices (1, [], []) (\(p, maybeIndex) (i, li', li2) -> case maybeIndex of
-                                                                            Nothing -> (i+1, li'++[(p, n+i)], li2++[p])
-                                                                            Just y -> (i, li'++[(p, y)], li2)
+  let withMaybeIndices = map (appendFun (flip findCurStmt w)) subbedKnown --need to contain indices!!!
+  let (ct, newList, toAdd) = for withMaybeIndices (1, [], []) (\(p, maybeIndex) (i, li', li2) -> case maybeIndex of
+                                                                                                  Nothing -> (i+1, li'++[(p, n+i)], li2++[p])
+                                                                                                  Just y -> (i, li'++[(p, y)], li2))
 --  let (found, notFound) = partition (isJust . snd) withMaybeIndices
   guard allVarsInst
   let arguments1 = map (Prop' . PVar) (M.keys s2)
   let arguments2 = map (Pure . snd) newList
   if length (curConcl w) == 1
-     then w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+     then Just $ w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
             & removeConclAtCur cnum
             & foldIterate addConclAtCur toAdd
-     else w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+     else Just $ w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
             & copyCurContextReplacingConcl toAdd
             & removeConclAtCur cnum
