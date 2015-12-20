@@ -11,6 +11,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Text.Parsec
 import Text.Parsec.String
+import Prelude -- necessary for Hint.
 
 import LeafTree
 import Parser
@@ -83,6 +84,8 @@ quoteExprExp s =  do  loc <- location
 
 prop :: QuasiQuoter
 prop = QuasiQuoter { quoteExp = quoteExprExp,
-                     quotePat = undefined
+                     quotePat = undefined,
+                     quoteType = undefined,
+                     quoteDec = undefined
           }
 

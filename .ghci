@@ -1,5 +1,5 @@
 :set -XMultiParamTypeClasses -XTemplateHaskell -LambdaCase
-:set -i/C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/utilities:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/prop-logic:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/tableau:C:/Users/Owner/Dropbox/CS/hs/theorem-prover:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/utilities:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/prop-logic:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/tableau
+:set -i/C:/Users/holden-lee/Dropbox/CS/hs/haskell-utilities:C:/Users/Owner/Dropbox/CS/hs/haskell-utilities:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/utilities:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/prop-logic:C:/Users/holden-lee/Dropbox/CS/hs/theorem-prover/tableau:C:/Users/Owner/Dropbox/CS/hs/theorem-prover:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/utilities:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/prop-logic:C:/Users/Owner/Dropbox/CS/hs/theorem-prover/tableau
 :set -fobject-code
 
 -- C:\cygwin64\home\holden-lee/.ghci 

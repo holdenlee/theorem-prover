@@ -11,6 +11,7 @@ module Var where
 import Data.Maybe
 import Data.Data
 import Data.Typeable
+import Prelude -- necessary for Hint.
 
 newtype IVar = IVar Int deriving (Eq, Ord)
 newtype Str = Str String deriving (Eq, Ord)

@@ -1,9 +1,16 @@
+{-# OPTIONS
+    -XFlexibleContexts
+
+#-}
+
 module Parser where
 
+import Control.Monad
 import Text.Parsec
 import Text.Parsec.String
 import System.Environment
 import LeafTree
+import Prelude -- necessary for Hint.
 
 --generalized word
 genWord = many1 (noneOf " (),\n")

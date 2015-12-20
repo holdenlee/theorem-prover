@@ -12,6 +12,7 @@ import Control.Monad
 import Data.Monoid
 import qualified Data.Set as S
 import qualified Data.Map as M
+import Prelude -- necessary for Hint.
 
 import Prop
 import Utilities

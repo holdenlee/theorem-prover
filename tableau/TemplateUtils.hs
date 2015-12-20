@@ -10,7 +10,9 @@ import Language.Haskell.TH
 import Control.Applicative
 import Control.Monad
 import Control.Lens
+import Data.List
 import Data.Traversable
+import Prelude -- necessary for Hint.
 
 {-| given a constructor, get a pattern for the constructor, and the names and types of the variables. -}
 constructorToPattern :: Con -> Q ([(Name, Type)], Pat, Name)

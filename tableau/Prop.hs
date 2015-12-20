@@ -16,7 +16,9 @@ import Control.Lens
 import Control.Monad
 import Data.Data
 import Data.Typeable
+import Text.Printf
 import TemplateUtils
+import Prelude -- necessary for Hint.
 
 type PName = String
 
@@ -25,6 +27,22 @@ data PAtom = PName PName | PVar Int deriving (Show, Eq, Typeable, Data, Ord)
 data Prop' p = Prop' p | Implies (Prop' p) (Prop' p) | Iff (Prop' p) (Prop' p) | And (Prop' p) (Prop' p) | Or (Prop' p) (Prop' p) | Not (Prop' p) deriving (Show, Eq, Typeable, Data, Ord)
 
 type Prop = Prop' PAtom
+
+{-
+wrapParen :: String -> String
+wrapParen s = "("++s++")"
+-}
+
+--do this kind of catamorphism automatically!
+showProp :: Prop -> String
+showProp = \case
+  Prop' (PName str) -> str
+  Prop' (PVar i) -> "?"++(show i)
+  Implies p1 p2 -> printf "(%s -> %s)" (showProp p1) (showProp p2)
+  Iff p1 p2 -> printf "(%s <-> %s)" (showProp p1) (showProp p2)
+  And p1 p2 -> printf "(%s /\\ %s)" (showProp p1) (showProp p2)
+  Or p1 p2 -> printf "(%s \\/ %s)" (showProp p1) (showProp p2)
+  Not p1 -> printf "~%s" (showProp p1)
 
 deriveFunctor ''Prop'
 --this automatically generates the following.

@@ -6,10 +6,12 @@
     -XFunctionalDependencies
     -XTypeSynonymInstances
     -XFlexibleInstances
+    -XQuasiQuotes
 #-}
 
 module Tableau where
 
+import Data.List
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
@@ -17,28 +19,80 @@ import qualified Data.Set as S
 import Control.Lens hiding (Context, (|>), contexts)
 import Control.Monad
 import Control.Monad.Free
+import Text.Printf
+import Prelude -- necessary for Hint.
 
-import CmdLineSetup
 import PMatchT
 import Prop
 import IOUtils
 import Utilities
+import Pointed
+import QQ
 
-data Proof' a = Proof' String [Prop] [a]
+data Proof' b a = Proof' String [Prop] [a] | FunP b a
 
-instance Functor Proof' where
-  fmap f (Proof' str li li2) = Proof' str li (fmap f li2)
+instance Functor (Proof' b) where
+  fmap f = \case
+    (Proof' str li li2) -> Proof' str li (fmap f li2)
+    FunP v x -> FunP v (f x)
 
-type Proof = Free Proof' Int
+type Proof = Free (Proof' Int) Int
+
+showProof :: Proof -> String
+showProof = \case
+  Pure i -> "?"++(show i)
+  Free (Proof' str ps pfs) ->
+    let
+      plist = intercalate " " $ map showProp ps
+      pflist = intercalate " " $ map showProof pfs
+    in
+      printf "(%s %s %s)" str plist pflist
+  Free (FunP v x) ->
+    printf "(\\%d -> %s)" v (showProof x)
 
 {-| A context is a list of assumptions (and things shown) and a conclusion to try to prove.-}
-data Context = Context {_contextAssms :: S.Set Int, _contextConcl :: S.Set Int}
+data Context = Context {_contextAssms :: S.Set Int, _contextConcl :: S.Set Int} deriving (Show, Eq, Ord)
+
+instance Pointed Context where
+  point = Context point point
 
 {-| A workspace is a list of statements with partial proofs, contexts, the current context (which has focus), the unproven contexts, and a supply of fresh numbers. -}
 data Workspace = Workspace {_statements :: M.Map Int Prop, _proofs :: M.Map Int Proof, _contexts :: [Context], _cur :: Int, _unproven :: S.Set Int, _num :: Int}
 
+instance Pointed Workspace where
+  point = Workspace point point point point point point
+
 makeFields ''Context
 makeLenses ''Workspace
+
+instance Show Workspace where
+  show w =
+    if S.null (w ^. unproven)
+    then "Proved: "++(showProp $ (w ^. statements) M.! 0)
+    else
+      let
+        printStmts = intercalate "\n" .
+                     map (\(n, p) -> printf "%d: %s" n (showProp p))
+        knownString = printStmts $ curAssms w
+        goalString = printStmts $ curConcl w
+        curString = "Current context: " ++ (show (w ^. cur))
+        unprovenString = "Active contexts: "++ (show (w ^. unproven))
+      in
+       printf "%s\n==========\n%s\n%s\n%s"
+              knownString goalString curString unprovenString
+
+initWorkspace :: [Prop] -> Prop -> Workspace
+initWorkspace hyps conc =
+  point & num .~ -1
+        & contexts .~ [point]
+        & unproven .~ S.singleton 0
+        & cur .~ 0
+        & foldIterate addStmtAtCur hyps
+        & addConclAtCur conc
+        & foldIterate addDummyProof [0..(length hyps)]
+
+setWorkspace :: [Prop] -> Prop -> Workspace -> Workspace
+setWorkspace hyps conc = const $ initWorkspace hyps conc
 
 mcompose :: (Ord a, Monad m) => M.Map a (m a) -> M.Map a (m a) -> M.Map a (m a)
 mcompose m1 m2 =
@@ -47,7 +101,7 @@ mcompose m1 m2 =
     g f x = do
       x' <- x
       case f x' of
-       Nothing -> x
+       Nothing -> return x'
        Just y -> y
   in
    (M.map (g (flip M.lookup m1)) m2) `M.union` m1
@@ -86,8 +140,8 @@ findGoal p i w =
 addStmt :: Prop -> Int -> Workspace -> Workspace
 addStmt p i w =
   let n = w ^. num
-  in w & statements . ix n .~ p
-       & contexts . ix i . assms %~ S.insert n
+  in w & statements . at (n+1) .~ Just p
+       & contexts . ix i . assms %~ S.insert (n+1)
        & incrementNum
 --       & proofs . at num .~ pf
        --assms should be called knowns
@@ -97,8 +151,8 @@ addStmtAtCur p w = addStmt p (w ^. cur) w
 addConcl :: Prop -> Int -> Workspace -> Workspace
 addConcl p i w =
   let n = w ^. num
-  in w & statements . ix n .~ p
-       & contexts . ix i . concl %~ S.insert n
+  in w & statements . at (n+1) .~ Just p
+       & contexts . ix i . concl %~ S.insert (n+1)
        & incrementNum
 --       & proofs . at num .~ Pure num
        --assms should be called knowns
@@ -109,8 +163,6 @@ removeConcl :: Int -> Int -> Workspace -> Workspace
 removeConcl j i w =
   let n = w ^. num
   in w & contexts . ix i . concl %~ S.delete j
---       & proofs . at num .~ Pure num
-       --assms should be called knowns
 
 removeConclAtCur j w = removeConcl j (w ^. cur) w
 
@@ -134,7 +186,7 @@ changeContextIfDone w = if null (curConcl w)
                         then
                           let 
                             unp = w ^. unproven
-                            unp' = S.delete (w ^. cur) unp'
+                            unp' = S.delete (w ^. cur) unp
                             m = if S.null unp' then -1 else S.findMin unp'
                           in
                             w & unproven .~ unp' 
@@ -148,11 +200,11 @@ copyContextReplacingConcl :: Int -> [Prop] -> Workspace -> Workspace
 copyContextReplacingConcl i prs w =
   let
     n = w ^. num
-    news = [n..(n + (length prs) - 1)]
+    news = [(n+1)..(n + (length prs))]
   in
    w & contexts %~ (++[(fromJust (w ^? contexts . ix i)) & concl .~ (S.fromList news)])
      & statements %~ insertMultiple (zipWith (,) news prs)
-     & foldIterate addDummyProof [n..(n + (length prs) - 1)]
+     & foldIterate addDummyProof [(n+1)..(n + (length prs))]
      & unproven %~ (S.insert (length (w ^. contexts)))
      & incrementNum
 
@@ -182,30 +234,9 @@ forwardReason' dr s li w = do
             |> addStmtAtCur con
             |> (addProof $ M.singleton (n+(length addlAssms)+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
             |> changeContextIfDone)
-      {-
-  let doToW = case (findGoal con w) of
-                   Nothing -> addStmtAtCur conw
-                    >> incrementNum
-                    >> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
-                   Just i -> (addProof $ M.singleton i (Free (Proof' (dr ^. name) arguments1 arguments2)))
-                    >> moveConclToKnown i
-  return (w |> doToW)-}
-{-
-let arguments1 = map (Prop' . PVar) (M.keys s2)
-  let arguments2 = map Pure (li++[w ^. num, (w ^. num) + (length addlAssms) - 1])
-  let doToW = case (findGoal con w) of
-                   Nothing -> addStmtAtCur con
-                    >> incrementNum
-                    >> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
-                    >>foldIterate copyCurContextReplacingConcl addlAssms
-                   Just i -> (addProof $ M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
-                    >> moveConclToKnown i
-                    >> foldIterate copyCurContextReplacingConcl addlAssms
-  return (w |> doToW)-}
 
 backwardReason dr s cnum = tryDo (backwardReason' dr s cnum)
 
---[(Int, Prop)] -> [Prop] -> Prop -> Prop -> Maybe (M.Map Int Prop, [Prop])
 backwardReason' :: DeductionRule -> [(Int,Prop)] -> Int -> Workspace -> Maybe Workspace
 backwardReason' dr s cnum w = do
   let n = w ^. num
@@ -227,9 +258,65 @@ backwardReason' dr s cnum w = do
   let arguments1 = map (Prop' . PVar) (M.keys s2)
   let arguments2 = map (Pure . snd) newList
   if length (curConcl w) == 1
-     then Just $ w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+     then Just $ w & addProof (M.singleton cnum (Free (Proof' (dr ^. name) arguments1 arguments2)))
             & removeConclAtCur cnum
             & foldIterate addConclAtCur toAdd
-     else Just $ w & addProof (M.singleton (n+1) (Free (Proof' (dr ^. name) arguments1 arguments2)))
+            & changeContextIfDone
+     else Just $ w & addProof (M.singleton cnum (Free (Proof' (dr ^. name) arguments1 arguments2)))
             & copyCurContextReplacingConcl toAdd
+            & moveConclToKnown cnum
+
+unfoldReason cnum = tryDo (unfoldReason' cnum)
+
+unfoldReason' :: Int -> Workspace -> Maybe Workspace
+unfoldReason' cnum w = do
+  let n = w ^. num
+  let goalInContext = cnum `elem` (map fst $ curConcl w)
+  guard goalInContext
+  conc <- M.lookup cnum (w ^. statements)
+  subList <- pmatch' [prop|(?1 -> ?2)|] conc
+  let [(1,p1), (2,p2)] = subList
+  -- (Int, Prop)
+  if length (curConcl w) == 1
+     then Just $ w & addProof (M.singleton cnum (Free (FunP (n+1) (Pure (n+2)))))
+            & addStmtAtCur p1
             & removeConclAtCur cnum
+            & addConclAtCur p2
+            & addDummyProof (n+1)
+            & addDummyProof (n+2)
+     else Just $ w & addProof (M.singleton cnum (Free (FunP (n+2) (Pure (n+1)))))
+            & copyCurContextReplacingConcl [p2]
+            & addStmt p1 (length (w ^. contexts))
+            & moveConclToKnown cnum
+            & addDummyProof (n+1)
+            & addDummyProof (n+2)
+
+ex = [prop|(P -> ((P -> Q) -> ((P -> (Q -> R)) -> R)))|]
+
+exWorkspace = setWorkspace [] ex
+
+{-
+exWorkspace undefined
+let x = unfoldReason 0 it
+showProof ((it ^. proofs) M.! 0)
+x
+let x = unfoldReason 2 it
+showProof ((it ^. proofs) M.! 0)
+x
+let x = unfoldReason 4 it
+showProof ((it ^. proofs) M.! 0)
+x
+let x = forwardReason mp [] [1,3] it
+showProof ((it ^. proofs) M.! 0)
+x
+let x = forwardReason mp [] [1,5] it
+showProof ((it ^. proofs) M.! 0)
+x
+let x = backwardReason mp [(1,[prop|(Q)|])] 6 it
+showProof ((it ^. proofs) M.! 0)
+
+printList $ M.toList $ M.map showProof (x ^. proofs)
+
+let m = mcompose (M.fromList [(0,Pure 0)]) (M.fromList [(0, Free $ FunP 1 (Pure 2))])
+showProof (m M.! 0)
+-}

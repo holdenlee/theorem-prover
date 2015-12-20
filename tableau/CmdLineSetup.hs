@@ -22,3 +22,23 @@ until_ pred f ma start = do
 defIp :: InterpreterT IO ()
 defIp = setImportsQ [("Prelude", Nothing)]
                      --("Data.Map", Just "M")
+{- sample
+--x is the new string read. y is the internal state
+--alternatively, use "StateT IO Int"
+step :: String -> Int -> IO Int
+step x y = 
+    do
+      f <- runInterpreter $ defIp >> interpret x (as :: Int -> Int)
+      case f of
+       Left err -> do
+         putStrLn (show err)
+         return y
+       Right f' -> do
+         let s = (f' y)
+         putStrLn (show s)
+         return s
+
+main = until_ (=="quit") step (readPrompt "> ") 0
+
+
+-}
